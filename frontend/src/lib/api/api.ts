@@ -1,0 +1,97 @@
+import { LoginRequest, RegisterRequest, VerifyEmailRequest } from "@/types/types";
+import API from "./axios-client";
+
+export const getUser = async () => {
+  const response = await API.get("/auth/me");
+  return response.data;
+};
+
+export const refreshToken = async () => {
+  const response = await API.post("/auth/refresh");
+  return response.data;
+};
+
+export const registerUser = async (data: RegisterRequest) => {
+  const response = await API.post<{ message: string }>("/auth/register", data);
+  return response.data;
+};
+
+export const verifyUserEmail = async (data: VerifyEmailRequest) => {
+  const res = await API.get("/auth/verify-email", {
+    params: data,
+  });
+
+  return res.data;
+};
+
+
+
+export const loginUser = async (data : LoginRequest) => {
+  const res = await API.post("/auth/login", data)
+  return res.data
+}
+
+export const logout = async () => {
+  const res = await API.post("/auth/logout")
+  return res.data
+}
+
+
+
+export const listConversations = async () => {
+  const res = await API.get("/conversations/all")
+  return res.data
+}
+
+
+export const getSingleConversation = async (conversationId :string) => {
+  const res = await API.get(`/conversations/conversations/${conversationId}`)
+  return res.data
+}
+
+
+export const suggestedUsers = async () => {
+  const res = await API.get("/search/suggested-users")
+  return res.data.result
+}
+
+export const fetchUserByUsername = async (username: string) => {
+  const res = await API.get(`/auth/${encodeURIComponent(username)}`)
+  return res.data?.data ?? null
+}
+
+export const createConversation = async (otherUserId: string) => {
+  const res = await API.post("/conversations/create", {
+    otherUserId,
+  })
+
+  return res.data.conversation
+}
+
+
+export interface SendMessagePayload {
+  content?: string;
+  type?: "text" | "image" | "file" | "voice";
+  media?: any;
+  replyToId?: string;
+  clientId?: string;
+}
+
+export interface ListMessagesQuery {
+  limit?: number;
+  before?: string; 
+}
+
+
+export const sendMessageApi = async (conversationId: string, payload: SendMessagePayload) => {
+  const response = await API.post(`/chat/${conversationId}/send`, payload);
+  return response.data; 
+};
+
+
+export const listMessagesApi = async (conversationId: string, query?: ListMessagesQuery) => {
+  const response = await API.get(`/chat/${conversationId}/list`, {
+    params: query,
+  });
+  return response.data;
+};
