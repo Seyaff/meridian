@@ -1,14 +1,17 @@
 "use client";
 
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { useAuth } from "./auth-provider";
-import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { connectSocket, disconnectSocket, getSocket } from "@/socket";
 
 const SocketContext = createContext<Socket | null>(null);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const isAuthenticated = !!user;
+
+  const [socket] = useState<Socket>(() => getSocket());
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -16,14 +19,24 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     } else {
       disconnectSocket();
     }
+
     return () => disconnectSocket();
   }, [isAuthenticated]);
 
   return (
-    <SocketContext.Provider value={getSocket()}>{children}</SocketContext.Provider>
+    <SocketContext.Provider value={socket}>
+      {children}
+    </SocketContext.Provider>
   );
 }
 
+
 export function useSocket() {
-  return useContext(SocketContext);
+  
+  const s =  useContext(SocketContext);
+  if(!s) {
+    throw new Error("use socket must be used within a provider bro")
+  }
+
+  return s
 }

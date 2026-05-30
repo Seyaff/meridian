@@ -1,4 +1,4 @@
-import { LoginRequest, RegisterRequest, VerifyEmailRequest } from "@/types/types";
+import { LoginRequest, Message, RegisterRequest, VerifyEmailRequest } from "@/types/types";
 import API from "./axios-client";
 
 export const getUser = async () => {
@@ -83,15 +83,33 @@ export interface ListMessagesQuery {
 }
 
 
-export const sendMessageApi = async (conversationId: string, payload: SendMessagePayload) => {
-  const response = await API.post(`/chat/${conversationId}/send`, payload);
-  return response.data; 
-};
+export async function fetchMessages(conversationId: string, before?: string) {
+  const params: Record<string, string> = { limit: "40" };
+  if (before) params.before = before;
+  const { data } = await API.get(
+    `/chat/${conversationId}/list`,
+    { params },
+  );
+  return data as {
+    success: boolean;
+    messages: Message[];
+    hasMore: boolean;
+    nextCursor?: string;
+  };
+}
 
-
-export const listMessagesApi = async (conversationId: string, query?: ListMessagesQuery) => {
-  const response = await API.get(`/chat/${conversationId}/list`, {
-    params: query,
-  });
-  return response.data;
-};
+export async function sendMessage(
+  conversationId: string,
+  payload: {
+    content?: string;
+    type?: Message["type"];
+    media?: Message["media"];
+    clientId?: string;
+  },
+) {
+  const { data } = await API.post(
+    `/chat/${conversationId}/send`,
+    payload,
+  );
+  return data.message as Message;
+}

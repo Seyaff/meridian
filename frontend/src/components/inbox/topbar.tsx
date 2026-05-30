@@ -2,7 +2,7 @@ import { Info, Phone, Video } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface Props {
-  avatarUrl: string;
+  avatarUrl?: string;
   name: string;
   username?: string;
 }

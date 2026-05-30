@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { messageService } from "../../services/message.service";
 import z from "zod";
+import { getActiveParticipant } from "../../services/membership.service";
 
 const joinSchema = z.object({ conversationId: z.string().regex(/^[a-fA-F0-9]{24}$/) });
 
@@ -55,6 +56,20 @@ export const chatHandlers = (io: Server) => {
     console.log("User Id :" , socket.userId)
     console.log("User role :" , socket.userRole)
 
+
+    socket.on("conversation:join" , async (payload , ack) => {
+      try {
+        const {conversationId} = joinSchema.parse(payload) 
+        await getActiveParticipant(conversationId, socket.userId);
+        await socket.join(roomId(conversationId));
+        ack?.({ success: true, conversationId });
+        console.log("Room joined" , socket.rooms)
+
+      }catch(err) {
+        ack?.({ success: false, message: err instanceof Error ? err.message : "Join failed" });
+      }
+    } )
+
   
     socket.on("message:send", async (payload, ack) => {
       try {
@@ -68,7 +83,6 @@ export const chatHandlers = (io: Server) => {
         });
 
         io.to(roomId(data.conversationId)).emit("message:new", { message });
-
        
 
         ack?.({ success: true, message });
