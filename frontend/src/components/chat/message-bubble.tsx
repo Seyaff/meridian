@@ -9,9 +9,10 @@ type Props = {
   message: Message;
   isMe: boolean;
   isSeen?: boolean;
+  isMessagePending : boolean
 };
 
-export function MessageBubble({ message, isMe, isSeen }: Props) {
+export function MessageBubble({ message, isMe, isSeen , isMessagePending }: Props) {
   const time = formatMessageTime(message.createdAt);
   
 
@@ -66,7 +67,9 @@ export function MessageBubble({ message, isMe, isSeen }: Props) {
 
         {message.content &&
           (message.type === "text" || message.content !== message.media?.filename) && (
-            <p className="text-sm leading-relaxed">{message.content}</p>
+            <p className="text-sm leading-relaxed">{message.content}
+            {isMessagePending && <p>sending ...</p>}
+            </p>
           )}
 
         <p

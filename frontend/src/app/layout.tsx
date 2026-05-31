@@ -5,22 +5,22 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import QueryProvider from "@/components/providers/querProvider";
 
-
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AuthContextProvider from "@/components/providers/auth-provider";
 import { Toaster } from "sonner";
+import LenisProvider from "@/components/providers/smooth-scroll-provider";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
-  display: 'swap',
+  display: "swap",
 });
 
 const instrumentSerif = Instrument_Serif({
   variable: "--font-serif",
   subsets: ["latin"],
   weight: "400",
-  display: 'swap',
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -42,15 +42,17 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <QueryProvider>
           <AuthContextProvider>
-            {/* <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            > */}
-              <TooltipProvider>{children}</TooltipProvider>
-            {/* </ThemeProvider> */}
-            <Toaster />
+            <LenisProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <TooltipProvider>{children}</TooltipProvider>
+              </ThemeProvider>
+              <Toaster />
+            </LenisProvider>
           </AuthContextProvider>
         </QueryProvider>
       </body>

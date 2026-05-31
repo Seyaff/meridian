@@ -30,11 +30,7 @@ export default function SingleChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const [hovered, setHovered] = useState(false);
-
-  const handleHover = () => {
-    setHovered(true);
-  };
+ 
 
   const socket = useSocket();
   const params = useParams();
@@ -55,7 +51,12 @@ export default function SingleChatPage() {
     isFetchingNextPage,
   } = useMessages(conversationId || null);
 
-  const sendMutation = useSendMessage(conversationId);
+  const {
+    mutate,
+    mutateAsync,
+    isPending: messageSendPending,
+    isError: messageError,
+  } = useSendMessage(conversationId);
 
   const otherUserId =
     conversation && user
@@ -109,7 +110,7 @@ export default function SingleChatPage() {
   const sendPayload = useCallback(
     async (payload: {
       content?: string;
-      type?: "text" | "image" | "file" | "voice";
+      type: "text" | "image" | "file" | "voice";
       media?: Message["media"];
       clientId?: string;
     }) => {
@@ -126,7 +127,7 @@ export default function SingleChatPage() {
                 scrollToBottom();
                 resolve();
               } else {
-                sendMutation.mutate(
+                mutate(
                   { ...payload, clientId },
                   {
                     onSuccess: () => {
@@ -142,10 +143,10 @@ export default function SingleChatPage() {
         });
       }
 
-      await sendMutation.mutateAsync({ ...payload, clientId });
+      await mutateAsync({ ...payload, clientId });
       scrollToBottom();
     },
-    [conversationId, socket, sendMutation, scrollToBottom],
+    [conversationId, socket, mutate, scrollToBottom],
   );
 
   const emitTyping = useCallback(
@@ -161,6 +162,8 @@ export default function SingleChatPage() {
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
     };
   }, []);
+
+
 
   const handleDraftChange = (value: string) => {
     if (value.length > MAX_MESSAGE_LENGTH) return;
@@ -256,7 +259,7 @@ export default function SingleChatPage() {
             </p>
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 justify-end mt-auto">
+          <div className="mx-auto flex w-full max-w- flex-col gap-3 justify-end mt-auto">
             {messages.map((message: any) => {
               const isMe = message.senderId === user?.id;
               const isSeen =
@@ -266,6 +269,7 @@ export default function SingleChatPage() {
               return (
                 <MessageBubble
                   key={message.id || message.clientId}
+                  isMessagePending={messageSendPending}
                   message={message}
                   isMe={isMe}
                   isSeen={isSeen}

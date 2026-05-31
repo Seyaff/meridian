@@ -1,9 +1,13 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/components/providers/auth-provider"
+import Navbar from "@/components/ui/navbar";
+import { motion } from "motion/react";
 
 export default function Home() {
   return (
-    <main className="text-4xl">This is home</main>
-  )
+    <motion.main className="w-full">
+      <Navbar />
+      
+    </motion.main>
+  );
 }

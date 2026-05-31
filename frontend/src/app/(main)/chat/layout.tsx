@@ -11,10 +11,10 @@ export default function ChatLayout({
 }) {
   return (
     <SidebarProvider>
-      {/* Primary Sidebar (Universal Icons) */}
+    
       <ChatSidebar />
 
-      {/* Root layout wrapper where nested sub-layouts stack horizontally */}
+      
       <div className="flex flex-1 flex-row min-h-screen w-full relative">
         <SocketProvider>{children}</SocketProvider>
       </div>

@@ -3,17 +3,18 @@
 import { Home, Search, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { 
-  SidebarGroup, 
-  SidebarMenu, 
-  SidebarMenuButton, 
-  SidebarMenuItem, 
-  useSidebar
+import {
+  SidebarGroup,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
 } from "../ui/sidebar";
+import { useGetConversations } from "@/hooks/chat/use-getConversations";
 
 const navMainItems = [
   { label: "Home", icon: Home, href: "/chat" },
-  {label : "Search" , icon : Search , href : "/search"},
+  { label: "Search", icon: Search, href: "/search" },
   { label: "Messages", icon: Send, href: "/chat/inbox" },
 ];
 
@@ -21,37 +22,45 @@ export default function NavMain() {
   const pathname = usePathname();
   const { open } = useSidebar();
 
+  const { data } = useGetConversations();
+
+  const unreadConversations =
+    data?.conversations?.filter((c: any) => c.unreadCount > 0).length ?? 0;
+
   return (
-    // Removed flex-1 and absolute positioning to keep item spacing tight and identical in both modes
     <SidebarGroup className="p-2 transition-all duration-300 flex flex-1 items-center justify-center">
       <SidebarMenu className="gap-1">
-        {navMainItems.map((item) => {
+        {navMainItems.map((item, index) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const messageIcon = item.label === "Messages";
 
           return (
             <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton 
-                asChild 
+              <SidebarMenuButton
+                asChild
                 isActive={isActive}
                 tooltip={item.label}
-                // Removed dynamic layout overrides that cause jumping.
-                // We let the flex alignment keep elements uniform.
                 className="h-10 w-full transition-all duration-300"
               >
-                <Link 
-                  href={item.href} 
+                <Link
+                  href={item.href}
                   className={`flex items-center w-full h-full transition-all duration-300 ${
                     open ? "justify-start px-3 gap-3" : "justify-center px-0"
                   }`}
                 >
-                  <Icon className="size-4 shrink-0" />
-                  
-                  {/* Using display states matching the open flag ensures the layout engine 
-                    forces the text row calculation smoothly without clipping glitches.
-                  */}
+                  <div className="relative">
+                    <Icon className="size-4 shrink-0" />
+
+                    {messageIcon && unreadConversations > 0 && (
+                      <span className="absolute -top-2 -right-2 flex items-center justify-center min-w-[16px] h-[16px] rounded-full bg-red-600 text-white text-[10px]">
+                        {unreadConversations}
+                      </span>
+                    )}
+                  </div>
+
                   {open && (
-                    <span className="font-medium text-sm text-foreground tracking-wide animate-in fade-in duration-200 delay-75 whitespace-nowrap">
+                    <span className="font-medium text-sm text-foreground tracking-wide whitespace-nowrap">
                       {item.label}
                     </span>
                   )}

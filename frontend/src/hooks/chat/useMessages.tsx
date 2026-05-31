@@ -26,7 +26,7 @@ export function useSendMessage(conversationId: string) {
       content?: string;
       type: Message["type"];
       media?: Message["media"];
-      clientId?: string;
+      clientId?: string
     }) => sendMessage(conversationId, payload),
     onSuccess: (message) => {
       // 1. UPDATE ACTIVE CHAT MESSAGES

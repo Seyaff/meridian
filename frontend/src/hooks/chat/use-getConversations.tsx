@@ -3,7 +3,7 @@ import {useQuery} from "@tanstack/react-query"
 
 export const useGetConversations = () => {
     return useQuery({
-        queryKey : ["convesations"],
+        queryKey : ["conversations"],
         queryFn : listConversations
     })
 }

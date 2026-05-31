@@ -4,10 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 function appendMessage(
-  pages: Array<{ 
-    message: string; 
-    success: boolean; 
-    result: { messages: Message[]; hasMore: boolean; nextCursor?: string } 
+  pages: Array<{
+    message: string;
+    success: boolean;
+    result: { messages: Message[]; hasMore: boolean; nextCursor?: string };
   }>,
   message: Message,
 ) {
@@ -23,14 +23,14 @@ function appendMessage(
 
   if (exists) return pages;
 
-  next[0] = { 
-    ...first, 
+  next[0] = {
+    ...first,
     result: {
       ...first.result,
-      messages: [...first.result.messages, message]
-    }
+      messages: [...first.result.messages, message],
+    },
   };
-  
+
   return next;
 }
 
@@ -48,24 +48,37 @@ export default function useChatRealtime(
     socket.emit("conversation:join", { conversationId });
 
     const onNewMessage = (payload: { message: Message }) => {
+      queryClient.setQueryData(["conversations"], (oldData: any) => {
+        if (!oldData) return oldData;
+
+        return {
+          ...oldData,
+          conversations: oldData.conversations.map((conv: any) =>
+            conv.id === payload.message.conversationId
+              ? {
+                  ...conv,
+                  lastMessage: payload.message,
+                  updatedAt: payload.message.createdAt,
+                }
+              : conv,
+          ),
+        };
+      });
+
+      // only update messages cache if current chat
       if (payload.message.conversationId !== conversationId) return;
+      queryClient.setQueryData(["messages", conversationId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: appendMessage(old.pages, payload.message),
+        };
+      });
 
-      // 1. UPDATE THE ACTIVE CONVERSATION'S MESSAGES
-      queryClient.setQueryData(
-        ["messages", conversationId],
-        (old: any) => {
-          if (!old) return old;
-          return {
-            ...old,
-            pages: appendMessage(old.pages, payload.message),
-          };
-        },
-      );
-
-      // 2. INSTANTLY BUMP SIDEBAR CONVERSATION TO THE TOP
       queryClient.setQueryData(["conversations"], (oldData: any) => {
         if (!oldData || !oldData.conversations) return oldData;
 
+        console.log(oldData);
         const updatedConversations = oldData.conversations.map((conv: any) => {
           if (conv.id === conversationId) {
             return {

@@ -29,19 +29,16 @@ export default function InboxSidebar() {
 
   const params = useParams();
   
-  // 💡 Note: In your SingleChatPage, you read params?.id. 
-  // Make sure this matches the dynamic route folder name (e.g., [id] vs [conversationId])
   const activeId = (params?.id || params?.conversationId) as string;
 
-  // 1. Process and sort conversations so the newest updates float to the top
   const sortedConversations = useMemo(() => {
     const rawConversations = data?.conversations || [];
     
     return [...rawConversations].sort((a: any, b: any) => {
-      // Use last message timestamp if available; fall back to the conversation creation time
+    
       const timeA = new Date(a.lastMessage?.createdAt || a.updatedAt || a.createdAt).getTime();
       const timeB = new Date(b.lastMessage?.createdAt || b.updatedAt || b.createdAt).getTime();
-      return timeB - timeA; // Descending order (newest first)
+      return timeB - timeA;
     });
   }, [data?.conversations]);
 
@@ -71,8 +68,7 @@ export default function InboxSidebar() {
               );
 
               const chatName = chat.type === "dm" ? opposingParticipant?.name : chat.name;
-              
-              // 2. Updated preview parser to check for '.content' based on your payload schema
+          
               const chatPreview = chat.lastMessage?.content || "No messages yet";
               
               const chatAvatar = opposingParticipant?.avatarUrl; 
