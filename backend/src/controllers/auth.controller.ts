@@ -9,6 +9,7 @@ import {
   resendVerificationSchema,
   resetPasswordSchema,
   usernameSchema,
+  updateProfileSchema,
   verifyEmailQuerySchema,
 } from "../validators/auth.validator";
 import {
@@ -23,6 +24,7 @@ import {
   changePasswordService,
   logoutService,
   getUserByUserNameService,
+  updateProfileService,
 } from "../services/auth.service";
 import { getRequestMeta } from "../utils/request.util";
 import {
@@ -205,6 +207,19 @@ export const logoutController = asyncHandler(
   },
 );
 
+
+export const updateProfileController = asyncHandler(
+  async (req: Request, res: Response): Promise<any> => {
+    const body = updateProfileSchema.parse(req.body);
+    const user = await updateProfileService(req.user!.id, body);
+
+    return res.status(HTTPSTATUS.OK).json({
+      success: true,
+      message: "Profile updated",
+      user,
+    });
+  },
+);
 
 export const getUserController = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {

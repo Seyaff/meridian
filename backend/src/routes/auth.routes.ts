@@ -12,6 +12,7 @@ import {
   changePasswordController,
   logoutController,
   getUserController,
+  updateProfileController,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/authenticate.middleware";
 
@@ -27,7 +28,8 @@ authRoutes.post("/refresh", refreshController);
 authRoutes.post("/logout-all", authenticate, logoutAllController);
 authRoutes.patch("/change-password", authenticate, changePasswordController);
 authRoutes.get("/me", authenticate, getMeController);
+authRoutes.patch("/me", authenticate, updateProfileController);
 authRoutes.post("/logout", logoutController);
-authRoutes.get("/:username" ,authenticate , getUserController)
+authRoutes.get("/:username", authenticate, getUserController);
 
 export default authRoutes;

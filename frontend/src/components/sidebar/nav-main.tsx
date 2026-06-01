@@ -3,13 +3,7 @@
 import { Home, Search, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "../ui/sidebar";
+import { cn } from "@/lib/utils";
 import { useGetConversations } from "@/hooks/chat/use-getConversations";
 
 const navMainItems = [
@@ -18,58 +12,64 @@ const navMainItems = [
   { label: "Messages", icon: Send, href: "/chat/inbox" },
 ];
 
-export default function NavMain() {
-  const pathname = usePathname();
-  const { open } = useSidebar();
+function isNavActive(pathname: string, href: string) {
+  if (href === "/chat/inbox") {
+    return pathname === href || pathname.startsWith("/chat/inbox/");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
+export default function NavMain({ expanded }: { expanded: boolean }) {
+  const pathname = usePathname();
   const { data } = useGetConversations();
 
   const unreadConversations =
-    data?.conversations?.filter((c: any) => c.unreadCount > 0).length ?? 0;
+    data?.conversations?.filter((c: { unreadCount: number }) => c.unreadCount > 0)
+      .length ?? 0;
+
+  const badgeLabel =
+    unreadConversations > 4 ? "4+" : String(unreadConversations);
 
   return (
-    <SidebarGroup className="p-2 transition-all duration-300 flex flex-1 items-center justify-center">
-      <SidebarMenu className="gap-1">
-        {navMainItems.map((item, index) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          const messageIcon = item.label === "Messages";
+    <nav className="flex flex-1 flex-col justify-center gap-1 p-2">
+      {navMainItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = isNavActive(pathname, item.href);
+        const isMessages = item.label === "Messages";
 
-          return (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive}
-                tooltip={item.label}
-                className="h-10 w-full transition-all duration-300"
-              >
-                <Link
-                  href={item.href}
-                  className={`flex items-center w-full h-full transition-all duration-300 ${
-                    open ? "justify-start px-3 gap-3" : "justify-center px-0"
-                  }`}
-                >
-                  <div className="relative">
-                    <Icon className="size-4 shrink-0" />
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            title={!expanded ? item.label : undefined}
+            className={cn(
+              "relative flex h-10 items-center rounded-lg transition-colors duration-200",
+              expanded ? "gap-3 px-3" : "justify-center px-0",
+              isActive
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground",
+            )}
+          >
+            <div className="relative shrink-0">
+              <Icon className="size-5" />
+              {isMessages && unreadConversations > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-medium text-white">
+                  {badgeLabel}
+                </span>
+              )}
+            </div>
 
-                    {messageIcon && unreadConversations > 0 && (
-                      <span className="absolute -top-2 -right-2 flex items-center justify-center min-w-[16px] h-[16px] rounded-full bg-red-600 text-white text-[10px]">
-                        {unreadConversations}
-                      </span>
-                    )}
-                  </div>
-
-                  {open && (
-                    <span className="font-medium text-sm text-foreground tracking-wide whitespace-nowrap">
-                      {item.label}
-                    </span>
-                  )}
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          );
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+            <span
+              className={cn(
+                "overflow-hidden whitespace-nowrap text-sm font-medium transition-all duration-300",
+                expanded ? "w-auto opacity-100" : "w-0 opacity-0",
+              )}
+            >
+              {item.label}
+            </span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

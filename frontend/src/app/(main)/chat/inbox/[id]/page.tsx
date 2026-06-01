@@ -2,10 +2,18 @@
 
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  Image as ImageIcon,
+  Mic,
+  Sticker,
+  SendHorizontal,
+  Loader2,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { useGetConversation } from "@/hooks/chat/use-getConversation";
 import InboxTopbar from "@/components/inbox/topbar";
-import { Image as ImageIcon, Mic, Sticker, SendHorizontal, Loader2 } from "lucide-react";
 import EmojiPickerComponent from "@/components/chat/emoji-picker";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useSocket } from "@/components/providers/socket-provider";
@@ -21,9 +29,7 @@ import {
   getOtherParticipantId,
 } from "@/lib/chat-util";
 import { Message } from "@/types/types";
-import Link from "next/link";
 import { MessageBubble } from "@/components/chat/message-bubble";
-import { toast } from "sonner";
 import { usePresence } from "@/hooks/chat/usePresence";
 import { formatPresenceLabel } from "@/lib/presence.util";
 
@@ -33,19 +39,21 @@ export default function SingleChatPage() {
   const [draft, setDraft] = useState("");
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [initialScrollDone, setInitialScrollDone] = useState(false);
+
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef(0);
 
   const socket = useSocket();
   const params = useParams();
-
   const conversationId = (params?.id as string) || "";
 
   const { data, isLoading: conversationLoading } = useGetConversation(conversationId);
   const { user } = useAuth();
-
   const conversation = data?.conversation;
 
   const {
@@ -57,11 +65,8 @@ export default function SingleChatPage() {
   } = useMessages(conversationId || null);
   const markReadMutation = useMarkRead(conversationId);
 
-  const {
-    mutate,
-    mutateAsync,
-    isPending: messageSendPending,
-  } = useSendMessage(conversationId);
+  const { mutate, mutateAsync, isPending: messageSendPending } =
+    useSendMessage(conversationId);
 
   const otherUserId =
     conversation && user
@@ -70,45 +75,91 @@ export default function SingleChatPage() {
 
   const { getPresence } = usePresence(otherUserId ? [otherUserId] : []);
 
-  // Sync real-time updates for peer read receipts
   useChatRealtime(conversationId, user?.id || "", (lastReadAt) => {
     setPeerLastReadAt(lastReadAt);
   });
 
-  // Flatten and reverse infinite pages correctly
   const messages = useMemo(() => {
     if (!messagesData?.pages) return [];
-    return (
-      messagesData.pages
-        .slice()
-        .reverse()
-        .flatMap((page: any) => page?.result?.messages || []) ?? []
-    );
+    return messagesData.pages
+      .slice()
+      .reverse()
+      .flatMap((page) => page?.result?.messages || []);
   }, [messagesData?.pages]);
 
-  const title = conversation && user ? getConversationTitle(conversation, user.id) : "";
-  const avatarUrl = conversation && user ? getConversationAvatar(conversation, user.id) : undefined;
+  const lastOwnMessageId = useMemo(() => {
+    if (!user) return null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].senderId === user.id) return messages[i].id;
+    }
+    return null;
+  }, [messages, user]);
+
+  const peerHasReadLatest = useMemo(() => {
+    if (!peerLastReadAt || !lastOwnMessageId) return false;
+    const lastOwn = messages.find((m) => m.id === lastOwnMessageId);
+    if (!lastOwn) return false;
+    return new Date(peerLastReadAt) >= new Date(lastOwn.createdAt);
+  }, [peerLastReadAt, lastOwnMessageId, messages]);
+
+  const title =
+    conversation && user ? getConversationTitle(conversation, user.id) : "";
+  const avatarUrl =
+    conversation && user
+      ? getConversationAvatar(conversation, user.id)
+      : undefined;
 
   const otherParticipant = useMemo(() => {
     if (!conversation || !user || conversation.type !== "dm") return null;
     return (
-      conversation.participants.find((p: any) => p.userId !== user.id) ?? null
+      conversation.participants.find(
+        (p: { userId: string }) => p.userId !== user.id,
+      ) ?? null
     );
   }, [conversation, user]);
 
-  // Sync initial conversation read receipt state
   useEffect(() => {
     if (otherParticipant?.lastReadAt) {
       setPeerLastReadAt(otherParticipant.lastReadAt);
     }
   }, [otherParticipant?.lastReadAt, conversationId]);
 
-  // Handle building typing labels
+  const markConversationRead = useCallback(() => {
+    if (!conversationId) return;
+    markReadMutation.mutate();
+    socket?.emit("message:read", { conversationId });
+  }, [conversationId, markReadMutation, socket]);
+
+  useEffect(() => {
+    setInitialScrollDone(false);
+    if (!conversationId) return;
+    markReadMutation.mutate();
+    socket?.emit("message:read", { conversationId });
+  }, [conversationId, socket, markReadMutation]);
+
+  useEffect(() => {
+    if (!messages.length || initialScrollDone) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+      setInitialScrollDone(true);
+    });
+  }, [messages.length, conversationId, initialScrollDone]);
+
+  useEffect(() => {
+    const last = messages[messages.length - 1];
+    if (!last || last.senderId === user?.id) return;
+    markConversationRead();
+  }, [messages[messages.length - 1]?.id, user?.id, markConversationRead]);
+
   const typingLabel = useMemo(() => {
     if (typingUsers.length === 0) return null;
     const names = typingUsers
       .map((id) => {
-        const p = conversation?.participants.find((x: any) => x.userId === id);
+        const p = conversation?.participants.find(
+          (x: { userId: string; name?: string }) => x.userId === id,
+        );
         return p?.name ?? "Someone";
       })
       .filter(Boolean);
@@ -123,48 +174,51 @@ export default function SingleChatPage() {
     return formatPresenceLabel(p, otherParticipant?.name);
   }, [typingLabel, otherUserId, getPresence, otherParticipant?.name]);
 
-  // Emit read statuses when room changes
-  useEffect(() => {
-    if (!conversationId) return;
-    markReadMutation.mutate();
-    socket?.emit("message:read", { conversationId });
-  }, [conversationId, socket]);
-
-  // Handle typing listener setup
   useEffect(() => {
     if (!socket || !conversationId) return;
-
     const onTyping = (payload: { conversationId: string; userIds: string[] }) => {
       if (payload.conversationId !== conversationId) return;
       setTypingUsers(payload.userIds);
     };
-
     socket.on("typing:update", onTyping);
     return () => {
       socket.off("typing:update", onTyping);
     };
   }, [socket, conversationId]);
 
-  // Scroll to bottom implementation
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    if (behavior === "instant") {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-      }
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior });
-    }
+    bottomRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // Landing fix: Triggers immediate scroll layout synchronization
   useEffect(() => {
-    if (messages.length > 0) {
-      const timer = setTimeout(() => {
-        scrollToBottom("instant");
-      }, 50);
-      return () => clearTimeout(timer);
+    const root = scrollContainerRef.current;
+    const target = loadMoreRef.current;
+    if (!root || !target || !hasNextPage || isFetchingNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          prevScrollHeightRef.current = root.scrollHeight;
+          void fetchNextPage();
+        }
+      },
+      { root, threshold: 0.1 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  useEffect(() => {
+    if (!isFetchingNextPage && prevScrollHeightRef.current > 0) {
+      const root = scrollContainerRef.current;
+      if (root) {
+        const delta = root.scrollHeight - prevScrollHeightRef.current;
+        root.scrollTop += delta;
+        prevScrollHeightRef.current = 0;
+      }
     }
-  }, [conversationId, messages.length, scrollToBottom]);
+  }, [isFetchingNextPage, messagesData?.pages?.length]);
 
   const sendPayload = useCallback(
     async (payload: {
@@ -181,7 +235,7 @@ export default function SingleChatPage() {
           socket.emit(
             "message:send",
             { conversationId, ...payload, clientId },
-            (ack: { success: boolean; message?: string }) => {
+            (ack: { success: boolean }) => {
               if (ack?.success) {
                 setTimeout(() => scrollToBottom("smooth"), 50);
                 resolve();
@@ -226,7 +280,6 @@ export default function SingleChatPage() {
     if (value.length > MAX_MESSAGE_LENGTH) return;
     setDraft(value);
     emitTyping(true);
-
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
     typingTimeout.current = setTimeout(() => emitTyping(false), 1500);
   };
@@ -234,11 +287,9 @@ export default function SingleChatPage() {
   const handleSendText = async () => {
     const content = draft.trim();
     if (!content || !conversationId) return;
-
     setDraft("");
     emitTyping(false);
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
-
     try {
       await sendPayload({ content, type: "text" });
     } catch {
@@ -247,29 +298,18 @@ export default function SingleChatPage() {
     }
   };
 
-  const handleEmojiSelect = (emoji: string) => {
-    setDraft((prev) => prev + emoji);
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
-  };
-
-  const handleMicClick = () => toast.info("Voice notes feature coming soon!");
-  const handleImageClick = () => toast.info("Media attachments feature coming soon!");
-  const handleStickerClick = () => toast.info("Sticker pack integration coming soon!");
-
   if (!user) {
     return (
       <div className="flex h-full items-center justify-center p-6">
-        User nahi hai bhaiya
+        Please sign in to view messages.
       </div>
     );
   }
 
   if (conversationLoading) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-muted-foreground text-sm">
-        Loading conversation...
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        Loading conversation…
       </div>
     );
   }
@@ -280,7 +320,7 @@ export default function SingleChatPage() {
         <p className="font-serif text-2xl text-foreground">Select a conversation</p>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
           Pick a chat from the sidebar or{" "}
-          <Link href="/people" className="text-primary underline-offset-4 hover:underline">
+          <Link href="/search" className="text-primary underline-offset-4 hover:underline">
             find someone new
           </Link>
           .
@@ -290,126 +330,108 @@ export default function SingleChatPage() {
   }
 
   return (
-    <div className="w-full h-screen flex flex-col bg-background">
+    <div className="flex h-full min-h-0 w-full flex-col bg-background">
       <InboxTopbar
         avatarUrl={avatarUrl || user.avatarUrl}
         name={title || otherParticipant?.name || "Unknown User"}
         status={presenceLabel}
         username={otherParticipant?.username}
+        showBack
+        profileHref={
+          otherParticipant?.username
+            ? `/search/${otherParticipant.username}`
+            : undefined
+        }
       />
 
-      {/* Main Container assigned ref properly here */}
-      <div 
+      <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-4 flex flex-col"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4"
       >
         {messagesLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">Loading messages…</p>
+          <div className="flex flex-1 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
+          <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-muted-foreground">No messages yet. Say hello.</p>
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 justify-end mt-auto">
-            
-            {/* Wired up historical pagination trigger */}
-            {hasNextPage && (
-              <button
-                disabled={isFetchingNextPage}
-                onClick={() => fetchNextPage()}
-                className="mx-auto my-2 flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted transition disabled:opacity-50"
-              >
-                {isFetchingNextPage ? (
-                  <>
-                    <Loader2 className="h-3 w-3 animate-spin" /> Loading older messages...
-                  </>
-                ) : (
-                  "Load older messages"
-                )}
-              </button>
-            )}
+          <div className="mx-auto mt-auto flex w-full max-w-5xl flex-col gap-3">
+            <div ref={loadMoreRef} className="flex h-6 items-center justify-center">
+              {isFetchingNextPage && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
 
-            {messages.map((message: any) => {
-              const isMe = message.senderId === user?.id;
-              const isSeen =
-                isMe &&
-                !!peerLastReadAt &&
-                new Date(peerLastReadAt) >= new Date(message.createdAt);
-              
-              // Only marks as pending if it matches an active status placeholder identity
-              const isPending = !message.id && messageSendPending;
+            {messages.map((message) => {
+              const isMe = message.senderId === user.id;
+              const showSeen =
+                isMe && message.id === lastOwnMessageId && peerHasReadLatest;
 
               return (
                 <MessageBubble
                   key={message.id || message.clientId}
-                  isMessagePending={isPending}
+                  isMessagePending={!message.id && messageSendPending}
                   message={message}
                   isMe={isMe}
-                  isSeen={isSeen}
+                  showSeen={showSeen}
                 />
               );
             })}
 
-            <div ref={bottomRef} className="h-2" />
+            <div ref={bottomRef} className="h-1 shrink-0" />
           </div>
         )}
       </div>
 
-      <div className="border-t px-4 py-3 bg-background">
+      <div className="shrink-0 border-t bg-background px-3 py-2 sm:px-4 sm:py-3">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleSendText();
+            void handleSendText();
           }}
-          className="flex items-center gap-2 rounded-full border bg-muted/20 px-4 py-2 focus-within:ring-1 focus-within:ring-primary/30"
+          className="flex items-center gap-2 rounded-full border bg-muted/20 px-3 py-2 focus-within:ring-1 focus-within:ring-primary/30 sm:px-4"
         >
-          <div className="shrink-0">
-            <EmojiPickerComponent onChange={handleEmojiSelect} />
-          </div>
-
+          <EmojiPickerComponent onChange={(emoji) => setDraft((p) => p + emoji)} />
           <input
             ref={inputRef}
             type="text"
             value={draft}
             onChange={(e) => handleDraftChange(e.target.value)}
-            placeholder={`Message ${otherParticipant?.name || "user"}...`}
-            className="flex-1 bg-transparent px-2 py-1.5 outline-none text-sm placeholder:text-muted-foreground"
+            placeholder={`Message ${otherParticipant?.name || "user"}…`}
+            className="flex-1 bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
           />
-
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex shrink-0 items-center gap-1">
             {draft.trim().length > 0 ? (
               <button
                 type="submit"
-                className="rounded-full p-2 text-primary hover:bg-muted transition active:scale-95"
+                className="rounded-full p-2 text-primary hover:bg-muted active:scale-95"
               >
-                <SendHorizontal className="h-[18px] w-[18px] stroke-[2]" />
+                <SendHorizontal className="h-[18px] w-[18px]" />
               </button>
             ) : (
               <>
                 <button
                   type="button"
-                  onClick={handleMicClick}
-                  className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition active:scale-95"
+                  onClick={() => toast.info("Voice notes coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
                 >
-                  <Mic className="h-[18px] w-[18px] stroke-[1.9]" />
+                  <Mic className="h-[18px] w-[18px]" />
                 </button>
-
                 <button
                   type="button"
-                  onClick={handleImageClick}
-                  className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition active:scale-95"
+                  onClick={() => toast.info("Media attachments coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
                 >
-                  <ImageIcon className="h-[18px] w-[18px] stroke-[1.9]" />
+                  <ImageIcon className="h-[18px] w-[18px]" />
                 </button>
-
                 <button
                   type="button"
-                  onClick={handleStickerClick}
-                  className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition active:scale-95"
+                  onClick={() => toast.info("Stickers coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
                 >
-                  <Sticker className="h-[18px] w-[18px] stroke-[1.9]" />
+                  <Sticker className="h-[18px] w-[18px]" />
                 </button>
               </>
             )}

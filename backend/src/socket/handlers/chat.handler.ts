@@ -4,6 +4,9 @@ import z from "zod";
 import { getActiveParticipant } from "../../services/membership.service";
 import { typingStore } from "../../utils/typing.util";
 import { conversationService } from "../../services/conversation.service";
+import { emitInboxUpdate } from "../../utils/inboxEmit.util";
+import { presenceStore } from "../../utils/presence.store";
+import UserModel from "../../models/user.model";
 
 const joinSchema = z.object({ conversationId: z.string().regex(/^[a-fA-F0-9]{24}$/) });
 
@@ -45,6 +48,10 @@ function roomId(conversationId: string) {
   return `conversation:${conversationId}`;
 }
 
+function userRoom(userId: string) {
+  return `user:${userId}`;
+}
+
 export type AuthedSocket = Socket & {
   userId: string;
   userRole: string;
@@ -54,10 +61,17 @@ export const chatHandlers = (io: Server) => {
 
   io.on("connection", (rawSocket) => {
     const socket = rawSocket as AuthedSocket
-    console.log("Socket connected " , socket.id)
-    console.log("User Id :" , socket.userId)
-    console.log("User role :" , socket.userRole)
-
+    void socket.join(userRoom(socket.userId));
+    presenceStore.setOnline(socket.userId);
+    void UserModel.findByIdAndUpdate(socket.userId, {
+      isOnline: true,
+      lastSeenAt: new Date(),
+    });
+    io.emit("presence:update", {
+      userId: socket.userId,
+      isOnline: true,
+      lastSeenAt: new Date().toISOString(),
+    });
 
     socket.on("conversation:join" , async (payload , ack) => {
       try {
@@ -95,7 +109,7 @@ export const chatHandlers = (io: Server) => {
         });
 
         io.to(roomId(data.conversationId)).emit("message:new", { message });
-       
+        await emitInboxUpdate(io, data.conversationId, message);
 
         ack?.({ success: true, message });
       } catch (err) {
@@ -138,6 +152,13 @@ export const chatHandlers = (io: Server) => {
           userId: socket.userId,
           lastReadAt: result.lastReadAt,
         });
+        const summary = await conversationService.getInboxSummary(
+          conversationId,
+          socket.userId,
+        );
+        if (summary) {
+          socket.emit("inbox:update", summary);
+        }
       } catch {
         /* ignore */
       }
@@ -145,8 +166,17 @@ export const chatHandlers = (io: Server) => {
 
     
 
-    socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
+    socket.on("disconnect", () => {
+      presenceStore.setOffline(socket.userId);
+      void UserModel.findByIdAndUpdate(socket.userId, {
+        isOnline: false,
+        lastSeenAt: new Date(),
+      });
+      io.emit("presence:update", {
+        userId: socket.userId,
+        isOnline: false,
+        lastSeenAt: new Date().toISOString(),
+      });
     });
   });
 };

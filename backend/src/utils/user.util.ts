@@ -30,7 +30,21 @@ export function sanitizeUser(user: IUser): SanitizedUser {
     isEmailVerified: user.isEmailVerified,
     emailVerifiedAt: user.emailVerifiedAt,
     lastLoginAt: user.lastLoginAt,
+    lastSeenAt: user.lastSeenAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
+  };
+}
+
+export function sanitizePublicUser(user: IUser) {
+  return {
+    id: user._id.toString(),
+    username: user.username,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    bio: user.bio,
+    isOnline: user.isOnline ?? false,
+    lastSeenAt: user.lastSeenAt,
+    createdAt: user.createdAt,
   };
 }

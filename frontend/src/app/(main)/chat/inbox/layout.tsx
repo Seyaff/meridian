@@ -1,29 +1,26 @@
 "use client";
 
 import InboxSidebar from "@/components/sidebar/inbox-sidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { useParams } from "next/navigation";
 
 export default function InboxLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <SidebarProvider
-      style={
-        {
-          "--sidebar-width": "60rem",
-          "--sidebar-width-mobile": "20rem",
-        } as React.CSSProperties
-      }
-    >
-      {/* Secondary Custom-Width Sidebar */}
-      <InboxSidebar />
+  const params = useParams();
+  const activeId = params?.id as string | undefined;
 
-      {/* Active Message Pane Viewport */}
-      <main className="flex-1 bg-background relative flex flex-col min-w-0">
+  return (
+    <div className="flex h-screen min-h-0 w-full">
+      <InboxSidebar className={activeId ? "hidden md:flex" : "flex"} />
+      <main
+        className={`min-w-0 flex-1 flex-col bg-background ${
+          activeId ? "flex" : "hidden md:flex"
+        }`}
+      >
         {children}
       </main>
-    </SidebarProvider>
+    </div>
   );
 }

@@ -62,11 +62,13 @@ async function enrichParticipants(conversationId: Types.ObjectId) {
 
 async function countUnread(
   conversationId: Types.ObjectId,
+  userId: string,
   lastReadAt?: Date,
 ): Promise<number> {
   const filter: Record<string, unknown> = {
     conversationId,
     deletedAt: { $exists: false },
+    senderId: { $ne: new Types.ObjectId(userId) },
   };
   if (lastReadAt) filter.createdAt = { $gt: lastReadAt };
   return MessageModel.countDocuments(filter);
@@ -87,7 +89,7 @@ export const conversationService = {
       const conv = await ConversationModel.findById(m.conversationId);
       if (!conv) continue;
       const participants = await enrichParticipants(conv._id);
-      const unreadCount = await countUnread(conv._id, m.lastReadAt);
+      const unreadCount = await countUnread(conv._id, userId, m.lastReadAt);
 
       items.push({
         id: conv._id.toString(),
@@ -130,7 +132,7 @@ export const conversationService = {
     }).lean();
 
     const participants = await enrichParticipants(conv._id);
-    const unreadCount = await countUnread(conv._id, membership?.lastReadAt);
+    const unreadCount = await countUnread(conv._id, userId, membership?.lastReadAt);
 
     return {
       id: conv._id.toString(),
@@ -199,6 +201,17 @@ export const conversationService = {
     return { conversationId, lastReadAt: participant.lastReadAt };
   },
 
-
-  
+  async getInboxSummary(conversationId: string, userId: string) {
+    try {
+      const conv = await this.getById(conversationId, userId);
+      return {
+        conversationId: conv.id,
+        lastMessage: conv.lastMessage,
+        unreadCount: conv.unreadCount,
+        updatedAt: conv.updatedAt,
+      };
+    } catch {
+      return null;
+    }
+  },
 };

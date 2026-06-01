@@ -1,12 +1,10 @@
 import { useSocket } from "@/components/providers/socket-provider";
 import { Message } from "@/types/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 function appendMessage(
   pages: Array<{
-    message: string;
-    success: boolean;
     result: { messages: Message[]; hasMore: boolean; nextCursor?: string };
   }>,
   message: Message,
@@ -41,6 +39,8 @@ export default function useChatRealtime(
 ) {
   const socket = useSocket();
   const queryClient = useQueryClient();
+  const onPeerReadRef = useRef(onPeerRead);
+  onPeerReadRef.current = onPeerRead;
 
   useEffect(() => {
     if (!socket || !conversationId || !currentUserId) return;
@@ -48,63 +48,41 @@ export default function useChatRealtime(
     socket.emit("conversation:join", { conversationId });
 
     const onNewMessage = (payload: { message: Message }) => {
-      queryClient.setQueryData(["conversations"], (oldData: any) => {
-        if (!oldData) return oldData;
+      if (payload.message.conversationId !== conversationId) return;
 
+      queryClient.setQueryData(["messages", conversationId], (old: { pages?: unknown[] } | undefined) => {
+        if (!old?.pages) return old;
         return {
-          ...oldData,
-          conversations: oldData.conversations.map((conv: any) =>
-            conv.id === payload.message.conversationId
-              ? {
-                  ...conv,
-                  lastMessage: payload.message,
-                  updatedAt: payload.message.createdAt,
-                }
-              : conv,
+          ...old,
+          pages: appendMessage(
+            old.pages as Parameters<typeof appendMessage>[0],
+            payload.message,
           ),
         };
       });
+    };
 
-      // only update messages cache if current chat
-      if (payload.message.conversationId !== conversationId) return;
-      queryClient.setQueryData(["messages", conversationId], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pages: appendMessage(old.pages, payload.message),
-        };
-      });
-
-      queryClient.setQueryData(["conversations"], (oldData: any) => {
-        if (!oldData || !oldData.conversations) return oldData;
-
-        console.log(oldData);
-        const updatedConversations = oldData.conversations.map((conv: any) => {
-          if (conv.id === conversationId) {
-            return {
-              ...conv,
-              lastMessage: payload.message, // Injection of the incoming message object
-              updatedAt: payload.message.createdAt, // Enforcing modern timestamp
-            };
-          }
-          return conv;
-        });
-
-        return {
-          ...oldData,
-          conversations: updatedConversations,
-        };
-      });
-
-      // 3. Background sync verification safety valve
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    const onRead = (payload: {
+      conversationId: string;
+      userId: string;
+      lastReadAt: string | Date;
+    }) => {
+      if (payload.conversationId !== conversationId) return;
+      if (payload.userId === currentUserId) return;
+      const ts =
+        typeof payload.lastReadAt === "string"
+          ? payload.lastReadAt
+          : new Date(payload.lastReadAt).toISOString();
+      onPeerReadRef.current(ts);
     };
 
     socket.on("message:new", onNewMessage);
+    socket.on("message:read", onRead);
 
     return () => {
       socket.emit("conversation:leave", { conversationId });
       socket.off("message:new", onNewMessage);
+      socket.off("message:read", onRead);
     };
-  }, [conversationId, currentUserId, onPeerRead, queryClient, socket]);
+  }, [conversationId, currentUserId, queryClient, socket]);
 }

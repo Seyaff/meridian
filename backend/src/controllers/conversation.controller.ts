@@ -3,6 +3,7 @@ import { asyncHandler } from "../middlewares/asyncHandler.middleware";
 import { HTTPSTATUS } from "../config/http.config";
 import { conversationIdParamSchema, createDmSchema } from "../validators/chat.validator";
 import { conversationService } from "../services/conversation.service";
+import { getIO } from "../socket";
 
 export const createConversation = asyncHandler(async (req :Request ,res : Response) => {
 
@@ -44,6 +45,11 @@ export const getConversationController = asyncHandler(async (req: Request, res: 
 
 export const markReadController = asyncHandler(async (req: Request, res: Response) => {
   const { conversationId } = conversationIdParamSchema.parse(req.params);
-  const result = await conversationService.markRead(conversationId, req.user!.id);
+  const userId = req.user!.id;
+  const result = await conversationService.markRead(conversationId, userId);
+  const summary = await conversationService.getInboxSummary(conversationId, userId);
+  if (summary) {
+    getIO().to(`user:${userId}`).emit("inbox:update", summary);
+  }
   return res.status(HTTPSTATUS.OK).json({ success: true, ...result });
 });

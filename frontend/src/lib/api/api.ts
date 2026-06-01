@@ -86,17 +86,30 @@ export interface ListMessagesQuery {
 export async function fetchMessages(conversationId: string, before?: string) {
   const params: Record<string, string> = { limit: "40" };
   if (before) params.before = before;
-  const { data } = await API.get(
-    `/chat/${conversationId}/list`,
-    { params },
-  );
+  const { data } = await API.get(`/chat/${conversationId}/list`, { params });
   return data as {
     success: boolean;
-    messages: Message[];
-    hasMore: boolean;
-    nextCursor?: string;
+    result: {
+      messages: Message[];
+      hasMore: boolean;
+      nextCursor?: string;
+    };
   };
 }
+
+export const searchUsers = async (q?: string) => {
+  const res = await API.get("/search/users", { params: q ? { q } : {} });
+  return res.data.result;
+};
+
+export const updateProfile = async (payload: {
+  name?: string;
+  bio?: string;
+  avatarUrl?: string;
+}) => {
+  const res = await API.patch("/auth/me", payload);
+  return res.data.user;
+};
 
 export async function sendMessage(
   conversationId: string,

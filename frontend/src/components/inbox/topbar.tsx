@@ -1,4 +1,7 @@
-import { Info, Phone, Video } from "lucide-react";
+"use client";
+
+import Link from "next/link";
+import { ArrowLeft, Info, Phone, Video } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 interface Props {
@@ -6,6 +9,8 @@ interface Props {
   name: string;
   username?: string;
   status?: string | null;
+  showBack?: boolean;
+  profileHref?: string;
 }
 
 export default function InboxTopbar({
@@ -13,59 +18,77 @@ export default function InboxTopbar({
   name,
   username,
   status,
+  showBack,
+  profileHref,
 }: Props) {
+  const profileLink = profileHref || (username ? `/search/${username}` : undefined);
+
   return (
-    <header className="border-b px-5 py-4 bg-background shrink-0">
-      <div className="flex items-center justify-between gap-4">
-        
-        {/* LEFT: User Profile & Presence */}
-        <div className="flex items-center gap-3 min-w-0">
-          <Avatar className="h-12 w-12 border shrink-0">
-            <AvatarImage
-              src={avatarUrl}
-              alt={name}
-              className="object-cover"
-            />
-            <AvatarFallback>
-              {name?.slice(0, 2).toUpperCase() || "CH"}
-            </AvatarFallback>
-          </Avatar>
+    <header className="shrink-0 border-b bg-background px-3 py-3 sm:px-5 sm:py-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          {showBack && (
+            <Link
+              href="/chat/inbox"
+              className="rounded-full p-2 text-muted-foreground hover:bg-muted md:hidden"
+              aria-label="Back to inbox"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          )}
 
-          <div className="leading-tight min-w-0">
-            <h1 className="text-[18px] font-bold text-foreground truncate max-w-[200px] sm:max-w-[400px]">
-              {name}
-            </h1>
-
-            <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[400px]">
-              {status || (username ? `@${username}` : "Offline")}
-            </p>
-          </div>
+          {profileLink ? (
+            <Link href={profileLink} className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-10 w-10 shrink-0 border sm:h-12 sm:w-12">
+                <AvatarImage src={avatarUrl} alt={name} className="object-cover" />
+                <AvatarFallback>{name?.slice(0, 2).toUpperCase() || "CH"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 leading-tight">
+                <h1 className="truncate text-base font-bold sm:text-lg">{name}</h1>
+                <p className="truncate text-xs text-muted-foreground">
+                  {status || (username ? `@${username}` : "Offline")}
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar className="h-10 w-10 shrink-0 border sm:h-12 sm:w-12">
+                <AvatarImage src={avatarUrl} alt={name} />
+                <AvatarFallback>{name?.slice(0, 2).toUpperCase() || "CH"}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 leading-tight">
+                <h1 className="truncate text-base font-bold sm:text-lg">{name}</h1>
+                <p className="truncate text-xs text-muted-foreground">{status}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* RIGHT: Action Buttons */}
-        <div className="flex items-center gap-4 text-muted-foreground shrink-0">
-          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
-            <Phone
-              size={22}
-              className="stroke-[2px] cursor-pointer"
-            />
+        <div className="flex shrink-0 items-center gap-1 text-muted-foreground sm:gap-2">
+          <button
+            type="button"
+            className="rounded-full p-2 hover:bg-muted hover:text-foreground"
+            aria-label="Voice call"
+          >
+            <Phone className="h-5 w-5" />
           </button>
-
-          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
-            <Video
-              size={22}
-              className="stroke-[2px] cursor-pointer"
-            />
+          <button
+            type="button"
+            className="rounded-full p-2 hover:bg-muted hover:text-foreground"
+            aria-label="Video call"
+          >
+            <Video className="h-5 w-5" />
           </button>
-
-          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
-            <Info
-              size={22}
-              className="stroke-[2px] cursor-pointer"
-            />
-          </button>
+          {profileLink && (
+            <Link
+              href={profileLink}
+              className="rounded-full p-2 hover:bg-muted hover:text-foreground"
+              aria-label="Profile"
+            >
+              <Info className="h-5 w-5" />
+            </Link>
+          )}
         </div>
-
       </div>
     </header>
   );

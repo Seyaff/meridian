@@ -1,32 +1,20 @@
-interface Props {
-  params: {
-    id?: string;
-  };
-}
+"use client";
 
-export default async function InboxPage({ params }: Props) {
-  const id = params?.id;
+import Link from "next/link";
 
-  // No conversation selected
-  if (!id) {
-    return (
-      <main className="flex h-screen w-full items-center justify-center ">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold ">
-            No Conversation Selected
-          </h1>
-
-          <p className="mt-2 text-zinc-400">
-            Please select a conversation to start chatting.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
+export default function InboxIndexPage() {
   return (
-    <main>
-      inbox page - {id}
-    </main>
+    <div className="flex h-full flex-col items-center justify-center bg-muted/20 px-6 text-center">
+      <p className="font-serif text-xl text-foreground sm:text-2xl">
+        Select a conversation
+      </p>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        Choose a chat from the list or{" "}
+        <Link href="/search" className="text-primary underline-offset-4 hover:underline">
+          find someone new
+        </Link>
+        .
+      </p>
+    </div>
   );
 }

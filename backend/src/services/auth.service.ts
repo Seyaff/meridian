@@ -13,7 +13,8 @@ import { addMinutes } from "../utils/date.util";
 import { hashToken } from "../utils/hash.util";
 import { RequestMeta } from "../utils/request.util";
 import { signAccessToken, verifyRefreshToken } from "../utils/token.util";
-import { sanitizeUser } from "../utils/user.util";
+import { sanitizePublicUser, sanitizeUser } from "../utils/user.util";
+import { presenceStore } from "../utils/presence.store";
 import { emailService } from "./email/email.service";
 import { tokenService } from "./token.service";
 import { verificationService } from "./verification.service";
@@ -393,6 +394,29 @@ export const logoutService = async (rawToken: string) => {
   return
 };
 
+export const updateProfileService = async (
+  userId: string,
+  data: { name?: string; bio?: string; avatarUrl?: string },
+) => {
+  const user = await UserModel.findById(userId);
+  if (!user || user.status === "deleted") {
+    throw new UnauthorizedError(
+      "User not found",
+      HTTPSTATUS.UNAUTHORIZED,
+      ErrorCodeEnum.AUTH_USER_NOT_FOUND,
+    );
+  }
+
+  if (data.name !== undefined) user.name = data.name;
+  if (data.bio !== undefined) user.bio = data.bio;
+  if (data.avatarUrl !== undefined) {
+    user.avatarUrl = data.avatarUrl === "" ? undefined : data.avatarUrl;
+  }
+
+  await user.save();
+  return sanitizeUser(user);
+};
+
 export const getUserByUserNameService = async (
   username: string,
   userId: string
@@ -419,9 +443,13 @@ export const getUserByUserNameService = async (
     _id: { $ne: currentUser._id },
   });
 
-  if (!userByUsername) {
+  if (!userByUsername || ["deleted", "suspended"].includes(userByUsername.status)) {
     throw new NotFoundError("User not found");
   }
 
-  return sanitizeUser(userByUsername);
+  const profile = sanitizePublicUser(userByUsername);
+  return {
+    ...profile,
+    isOnline: presenceStore.isOnline(profile.id) || profile.isOnline,
+  };
 };

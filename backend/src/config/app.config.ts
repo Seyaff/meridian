@@ -1,4 +1,6 @@
+import "dotenv/config"
 import { getEnv } from "../utils/getEnv";
+
 
 const appConfig = () => ({
   PORT: getEnv("PORT", "8000"),
@@ -6,7 +8,7 @@ const appConfig = () => ({
   BASE_PATH: getEnv("BASE_PATH", "/api/v1"),
 
 
-  MONGO_URI: getEnv("MONGO_URI"),
+  MONGO_URI: getEnv("MONGO_URI" , "mongodb+srv://seyaffxh:BKPMklTQpQMojY93@chat.ecmzbkj.mongodb.net/"),
 
   FRONTEND_ORIGIN : getEnv("FRONTEND_ORIGIN"),
 

@@ -8,6 +8,7 @@ import {
   listMessagesQuerySchema
 } from "../validators/chat.validator";
 import { getIO } from "../socket";
+import { emitInboxUpdate } from "../utils/inboxEmit.util";
 
 export const sendMessageController = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {
@@ -20,9 +21,9 @@ export const sendMessageController = asyncHandler(
       body,
     );
 
-    getIO()
-      .to(`conversation:${conversationId}`)
-      .emit("message:new", { result });
+    const io = getIO();
+    io.to(`conversation:${conversationId}`).emit("message:new", { message: result });
+    await emitInboxUpdate(io, conversationId, result);
 
     return res.status(HTTPSTATUS.OK).json({
       success: true,

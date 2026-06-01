@@ -1,4 +1,4 @@
-import React from "react";
+import AppShell from "@/components/layout/app-shell";
 
 export default function MainLayout({
   children,
@@ -6,8 +6,8 @@ export default function MainLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen  h-screen w-full overflow-hidden bg-background">
-      {children}
+    <main className="h-screen w-full overflow-hidden bg-background">
+      <AppShell>{children}</AppShell>
     </main>
   );
 }

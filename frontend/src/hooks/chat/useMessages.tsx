@@ -12,8 +12,10 @@ export function useMessages(conversationId: string | null) {
     queryFn: ({ pageParam }) =>
       fetchMessages(conversationId!, pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor : undefined,
+    getNextPageParam: (lastPage) => {
+      const result = lastPage?.result;
+      return result?.hasMore ? result.nextCursor : undefined;
+    },
     enabled: !!conversationId,
   });
 }
@@ -92,10 +94,15 @@ export function useMarkRead(conversationId: string | null) {
       await queryClient.cancelQueries({ queryKey: ["conversations"] });
       queryClient.setQueryData(
         ["conversations"],
-        (old: Conversation[] | undefined) =>
-          old?.map((c) =>
-            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
-          ),
+        (old: { conversations?: Conversation[] } | undefined) => {
+          if (!old?.conversations) return old;
+          return {
+            ...old,
+            conversations: old.conversations.map((c) =>
+              c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+            ),
+          };
+        },
       );
     },
     onSuccess: () => {

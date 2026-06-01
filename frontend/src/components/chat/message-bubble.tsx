@@ -8,11 +8,16 @@ import { useState } from "react";
 type Props = {
   message: Message;
   isMe: boolean;
-  isSeen?: boolean;
-  isMessagePending : boolean
+  showSeen?: boolean;
+  isMessagePending: boolean;
 };
 
-export function MessageBubble({ message, isMe, isSeen , isMessagePending }: Props) {
+export function MessageBubble({
+  message,
+  isMe,
+  showSeen,
+  isMessagePending,
+}: Props) {
   const time = formatMessageTime(message.createdAt);
   
 
@@ -81,8 +86,8 @@ export function MessageBubble({ message, isMe, isSeen , isMessagePending }: Prop
         </p>
       </div>
 
-      {isMe && isSeen && (
-        <p className="mt-1 animate-pulse text-xs text-primary/90">Seen just now</p>
+      {isMe && showSeen && (
+        <p className="mt-1 text-xs text-muted-foreground">Seen just now</p>
       )}
     </div>
   );

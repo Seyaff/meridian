@@ -1,5 +1,8 @@
 export const getEnv = (key: string, defaultValue: string = ""): string => {
+  console.log(key)
+  console.log("Something is :" , process.env.MONGO_URI)
   const value = process.env[key];
+  console.log(value)
   if (value === undefined) {
     if (defaultValue) {
       return defaultValue;
