@@ -36,9 +36,9 @@ export const listMessageController = asyncHandler(
   async (req: Request, res: Response): Promise<any> => {
     // Correctly extract the slug key out of the validated object payload
     const some = req.params.slug
-    console.log("some" , some)
+    
     const slug = conversationSlugSchema.parse(req.params.slug);
-    console.log("Received request to list messages for slug:", slug);
+ 
     const query = listMessagesQuerySchema.parse(req.query);
 
     const result = await messageService.list(slug, req.user!.id, {

@@ -79,8 +79,7 @@ export const chatHandlers = (io: Server) => {
         await getActiveParticipant(conversationId, socket.userId);
         await socket.join(roomId(conversationId));
         ack?.({ success: true, conversationId });
-        console.log("Room joined" , socket.rooms)
-
+       
       }catch(err) {
         ack?.({ success: false, message: err instanceof Error ? err.message : "Join failed" });
       }

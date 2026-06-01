@@ -96,7 +96,7 @@ export function useMarkRead(conversationId: string | null) {
         ["conversations"],
         (old: { conversations?: Conversation[] } | undefined) => {
           if (!old?.conversations) return old;
-          console.log("Marking conversation as read in sidebar (optimistic update)");
+          
           return {
             ...old,
             conversations: old.conversations.map((c) =>

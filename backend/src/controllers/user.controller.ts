@@ -11,7 +11,7 @@ export const getPresenceController = asyncHandler(
       .filter(Boolean)
       .slice(0, 50);
 
-      console.log(ids)
+    
 
     const presence = await userService.getPresence(ids);
     return res.status(HTTPSTATUS.OK).json({ success: true, presence });

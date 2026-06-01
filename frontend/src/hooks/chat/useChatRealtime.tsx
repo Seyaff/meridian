@@ -72,7 +72,7 @@ export default function useChatRealtime(
       lastReadAt: string | Date;
     }) => {
 
-        console.log("READ EVENT RECEIVED", payload);
+      
 
       if (payload.conversationId !== conversationId) return;
       

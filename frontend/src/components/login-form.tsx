@@ -58,7 +58,7 @@ export function LoginForm({
       },
 
       onError: (error: any) => {
-        console.log("LOGIN ERROR:", error);
+       
 
         const message =
           error?.response?.data?.message ||

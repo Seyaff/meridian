@@ -8,7 +8,7 @@ const RESERVED = new Set(["inbox"]);
 export default function ChatThreadPage() {
   const params = useParams();
   const slug = params?.slug as string;
-  console.log(slug);
+ 
 
   if (!slug || RESERVED.has(slug)) {
     return null;

@@ -16,7 +16,9 @@ export const useLogout = () => {
       toast.success("Logged out successfully")
     },
     onError: (error) => {
-      console.error("Logout failed:", error)
+    toast.error("Logout Failed" , {
+      description : error.message
+    })
     }
   })
 }
