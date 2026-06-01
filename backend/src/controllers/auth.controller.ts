@@ -28,7 +28,7 @@ import {
 } from "../services/auth.service";
 import { getRequestMeta } from "../utils/request.util";
 import {
-  cleareCookiePair,
+  clearCookiePair,
   clearRefreshCookie,
   getAccessTokenFromCookies,
   getRefreshTokenFromCookies,
@@ -186,7 +186,7 @@ export const changePasswordController = asyncHandler(
 
     await changePasswordService(userId, currentPassword, newPassword);
 
-    cleareCookiePair(res);
+    clearCookiePair(res);
 
     return res.status(HTTPSTATUS.OK).json({
       message: "Password change successfully",
@@ -199,7 +199,7 @@ export const logoutController = asyncHandler(
     const rawToken = getRefreshTokenFromCookies(req);
     await logoutService(rawToken);
 
-    cleareCookiePair(res);
+    clearCookiePair(res);
 
     return res.status(HTTPSTATUS.OK).json({
       message: "Logged out successfully",
