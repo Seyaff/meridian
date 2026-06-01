@@ -6,7 +6,7 @@ import { HTTPSTATUS } from "../config/http.config";
 import { Env } from "../config/app.config";
 
 
-export const errorHandler: ErrorRequestHandler = (err, req, res, next): any => {
+export const errorHandler: ErrorRequestHandler = (err:any, req, res, next): any => {
 
     console.error(`[Error] ${err.name}: ${err.message}`);
 

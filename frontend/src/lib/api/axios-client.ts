@@ -23,7 +23,7 @@ export class ApiError extends Error {
 
 const API = axios.create({
   baseURL:
-    process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api/v1",
+    process.env.NEXT_PUBLIC_BACKEND_URL || "https://meridian-07bh.onrender.com/api/v1",
   withCredentials: true,
   timeout: 10000,
 });
