@@ -10,6 +10,8 @@ export const conversationIdParamSchema = z.object({
   conversationId: conversationRefSchema,
 });
 
+export const conversationSlugSchema = z.string().trim().min(2).max(100);
+
 export const listMessagesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(30),
   before: objectIdSchema.optional(),

@@ -34,6 +34,7 @@ function appendMessage(
 
 export default function useChatRealtime(
   conversationId: string,
+  slug: string,
   currentUserId: string,
   onPeerRead: (lastReadAt: string) => void,
 ) {
@@ -43,14 +44,16 @@ export default function useChatRealtime(
   onPeerReadRef.current = onPeerRead;
 
   useEffect(() => {
-    if (!socket || !conversationId || !currentUserId) return;
+    if (!socket || !conversationId || !slug || !currentUserId) return;
 
+    // Join room channel via standard conversation ID
     socket.emit("conversation:join", { conversationId });
 
+    // Handle real-time incoming messages
     const onNewMessage = (payload: { message: Message }) => {
       if (payload.message.conversationId !== conversationId) return;
 
-      queryClient.setQueryData(["messages", conversationId], (old: { pages?: unknown[] } | undefined) => {
+      queryClient.setQueryData(["messages", slug], (old: { pages?: unknown[] } | undefined) => {
         if (!old?.pages) return old;
         return {
           ...old,
@@ -62,18 +65,45 @@ export default function useChatRealtime(
       });
     };
 
+    // Handle real-time seen/read events
     const onRead = (payload: {
       conversationId: string;
       userId: string;
       lastReadAt: string | Date;
     }) => {
+
+        console.log("READ EVENT RECEIVED", payload);
+
       if (payload.conversationId !== conversationId) return;
-      if (payload.userId === currentUserId) return;
+      
       const ts =
         typeof payload.lastReadAt === "string"
           ? payload.lastReadAt
           : new Date(payload.lastReadAt).toISOString();
-      onPeerReadRef.current(ts);
+
+      // Update the local state hook component variable if it's from a peer
+      if (payload.userId !== currentUserId) {
+        onPeerReadRef.current(ts);
+      }
+
+      // 🔥 FIX: Dynamically updates the conversation cache array mapping.
+      // This forces components using useGetConversation(slug) to reflect the status instantly.
+      queryClient.setQueryData(["conversation", slug], (old: any) => {
+        if (!old || !old.conversation) return old;
+        
+        return {
+          ...old,
+          conversation: {
+            ...old.conversation,
+            participants: old.conversation.participants.map((p: any) => {
+              if (p.userId === payload.userId) {
+                return { ...p, lastReadAt: ts };
+              }
+              return p;
+            }),
+          },
+        };
+      });
     };
 
     socket.on("message:new", onNewMessage);
@@ -84,5 +114,5 @@ export default function useChatRealtime(
       socket.off("message:new", onNewMessage);
       socket.off("message:read", onRead);
     };
-  }, [conversationId, currentUserId, queryClient, socket]);
+  }, [conversationId, slug, currentUserId, queryClient, socket]);
 }

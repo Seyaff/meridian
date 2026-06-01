@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"; // 👈 Imported Avatar components
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
 import { useLogout } from "@/hooks/auth/useLogout";
@@ -18,6 +19,8 @@ export default function NavUser({ expanded }: { expanded: boolean }) {
 
   if (!user) return null;
 
+  const initials = user.name?.charAt(0).toUpperCase() || "U";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -28,9 +31,18 @@ export default function NavUser({ expanded }: { expanded: boolean }) {
             expanded ? "gap-2" : "justify-center",
           )}
         >
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sm font-medium text-sidebar-primary-foreground">
-            {user.name?.charAt(0).toUpperCase() || "U"}
-          </div>
+          {/* 🌟 SHADCN AVATAR SYSTEM INTEGRATION */}
+          <Avatar className="size-8 shrink-0 rounded-lg">
+            <AvatarImage 
+              src={user.avatarUrl || undefined} 
+              alt={user.name || "User avatar"} 
+              className="rounded-lg object-cover"
+            />
+            <AvatarFallback className="rounded-lg bg-sidebar-primary text-sm font-medium text-sidebar-primary-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+
           <div
             className={cn(
               "min-w-0 flex-1 overflow-hidden transition-all duration-300",

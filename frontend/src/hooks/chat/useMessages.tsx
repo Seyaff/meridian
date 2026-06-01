@@ -6,17 +6,17 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
-export function useMessages(conversationId: string | null) {
+export function useMessages(slug: string | null) {
   return useInfiniteQuery({
-    queryKey: ["messages", conversationId],
+    queryKey: ["messages", slug],
     queryFn: ({ pageParam }) =>
-      fetchMessages(conversationId!, pageParam as string | undefined),
+      fetchMessages(slug!, pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => {
       const result = lastPage?.result;
       return result?.hasMore ? result.nextCursor : undefined;
     },
-    enabled: !!conversationId,
+    enabled: !!slug,
   });
 }
 
@@ -96,6 +96,7 @@ export function useMarkRead(conversationId: string | null) {
         ["conversations"],
         (old: { conversations?: Conversation[] } | undefined) => {
           if (!old?.conversations) return old;
+          console.log("Marking conversation as read in sidebar (optimistic update)");
           return {
             ...old,
             conversations: old.conversations.map((c) =>

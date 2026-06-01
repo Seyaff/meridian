@@ -3,7 +3,7 @@ import MessageModel, {
   MessageMedia,
   MessageType,
 } from "../models/message.model";
-import { getActiveParticipant } from "./membership.service";
+import { getActiveParticipant, getActiveParticipantBySlug } from "./membership.service";
 import { HTTPSTATUS } from "../config/http.config";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
 import { BadRequestError } from "../utils/appError";
@@ -56,21 +56,25 @@ function sanitize(msg: {
 }
 
 export const messageService = {
-   async list(
-    conversationId: string,
+  async list(
+    slug: string,
     userId: string,
     options: { limit: number; before?: string },
   ) {
-    await getActiveParticipant(conversationId, userId);
+    // 1. Fetch membership status and internal ID from the standalone slug helper
+    const participant = await getActiveParticipantBySlug(slug, userId);
+    const conversationId = participant.conversationId;
 
+    // 2. Set up the message filter based on the resolved conversationId
     const filter: Record<string, unknown> = {
-      conversationId: new Types.ObjectId(conversationId),
+      conversationId: conversationId,
       deletedAt: { $exists: false },
     };
 
+    // 3. Process cursor-based pagination safely
     if (options.before) {
       const cursor = await MessageModel.findById(options.before);
-      if (!cursor || cursor.conversationId.toString() !== conversationId) {
+      if (!cursor || cursor.conversationId.toString() !== conversationId.toString()) {
         throw new BadRequestError(
           "Invalid cursor",
           HTTPSTATUS.BAD_REQUEST,
@@ -83,6 +87,7 @@ export const messageService = {
       ];
     }
 
+    // 4. Run the indexed query
     const messages = await MessageModel.find(filter)
       .sort({ createdAt: -1, _id: -1 })
       .limit(options.limit + 1)
@@ -99,6 +104,7 @@ export const messageService = {
       nextCursor: hasMore ? slice[slice.length - 1]._id.toString() : undefined,
     };
   },
+
   async send(
     conversationId: string,
     senderId: string,
@@ -154,9 +160,7 @@ export const messageService = {
       content: content || preview,
       type,
       media: data.media,
-      replyToId: data.replyToId
-        ? new Types.ObjectId(data.replyToId)
-        : undefined,
+      replyToId: data.replyToId ? new Types.ObjectId(data.replyToId) : undefined,
       clientId: data.clientId,
     });
 

@@ -8,6 +8,8 @@ export function getOtherParticipantId(
   return conversation.participants.find((p) => p.userId !== currentUserId)?.userId;
 }
 
+
+
 export function getConversationTitle(
   conversation: Conversation,
   currentUserId: string,

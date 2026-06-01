@@ -63,17 +63,22 @@ export default function ChatThread({ slug }: { slug: string }) {
 
   const { markReadNow } = useMarkConversationRead(slug || null, conversationId);
 
-  const { mutate, mutateAsync, isPending: messageSendPending } =
-    useSendMessage(slug);
+  const {
+    mutate,
+    mutateAsync,
+    isPending: messageSendPending,
+  } = useSendMessage(slug);
 
   const otherUserId =
     conversation && user
       ? getOtherParticipantId(conversation, user.id)
       : undefined;
 
+
   const { getPresence } = usePresence(otherUserId ? [otherUserId] : []);
 
-  useChatRealtime(conversationId, user?.id || "", (lastReadAt) => {
+  
+  useChatRealtime(conversationId, slug, user?.id || "", (lastReadAt) => {
     setPeerLastReadAt(lastReadAt);
   });
 
@@ -84,8 +89,6 @@ export default function ChatThread({ slug }: { slug: string }) {
       .reverse()
       .flatMap((page) => page?.result?.messages || []);
   }, [messagesData?.pages]);
-
-  console.log("Messaes" , messages)
 
   const lastOwnMessageId = useMemo(() => {
     if (!user) return null;
@@ -102,15 +105,9 @@ export default function ChatThread({ slug }: { slug: string }) {
     return new Date(peerLastReadAt) >= new Date(lastOwn.createdAt);
   }, [peerLastReadAt, lastOwnMessageId, messages]);
 
-  const title =
-    conversation && user ? getConversationTitle(conversation, user.id) : "";
-  const avatarUrl =
-    conversation && user
-      ? getConversationAvatar(conversation, user.id)
-      : undefined;
-
+ 
   const otherParticipant = useMemo(() => {
-    if (!conversation || !user || conversation.type !== "dm") return null;
+    if (!conversation || !user) return null;
     return (
       conversation.participants.find(
         (p: { userId: string }) => p.userId !== user.id,
@@ -118,11 +115,26 @@ export default function ChatThread({ slug }: { slug: string }) {
     );
   }, [conversation, user]);
 
+
+  const displayTitle = useMemo(() => {
+    if (!conversation || !user) return "";
+    if (conversation.type === "group") return conversation.name || "Group Chat";
+    return conversation.name || otherParticipant?.name || otherParticipant?.username || "Chat";
+  }, [conversation, user, otherParticipant]);
+
+
+  const resolvedAvatarUrl = useMemo(() => {
+    if (!conversation) return undefined;
+    if (conversation.type === "group") return conversation.avatarUrl;
+    return otherParticipant?.avatarUrl || undefined;
+  }, [conversation, otherParticipant]);
+
+  
   useEffect(() => {
     if (otherParticipant?.lastReadAt) {
       setPeerLastReadAt(otherParticipant.lastReadAt);
     }
-  }, [otherParticipant?.lastReadAt, slug]);
+  }, [otherParticipant, slug]);
 
   useEffect(() => {
     setInitialScrollDone(false);
@@ -138,11 +150,34 @@ export default function ChatThread({ slug }: { slug: string }) {
     });
   }, [messages.length, slug, initialScrollDone]);
 
+ 
+  useEffect(() => {
+    if (messages.length > 0 && initialScrollDone) {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+
+      const isNearBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 300;
+      const lastMessage = messages[messages.length - 1];
+      const isMyOwnMessage = lastMessage?.senderId === user?.id;
+
+      if (isNearBottom || isMyOwnMessage) {
+        setTimeout(() => scrollToBottom("smooth"), 30);
+      }
+    }
+  }, [messages.length, user?.id, initialScrollDone]);
+
+  
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (!last || last.senderId === user?.id || !conversationId) return;
     markReadNow();
-  }, [messages[messages.length - 1]?.id, user?.id, conversationId, markReadNow]);
+  }, [
+    messages[messages.length - 1]?.id,
+    user?.id,
+    conversationId,
+    markReadNow,
+  ]);
 
   const typingLabel = useMemo(() => {
     if (typingUsers.length === 0) return null;
@@ -167,7 +202,10 @@ export default function ChatThread({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!socket || !conversationId) return;
-    const onTyping = (payload: { conversationId: string; userIds: string[] }) => {
+    const onTyping = (payload: {
+      conversationId: string;
+      userIds: string[];
+    }) => {
       if (payload.conversationId !== conversationId) return;
       setTypingUsers(payload.userIds);
     };
@@ -308,9 +346,14 @@ export default function ChatThread({ slug }: { slug: string }) {
   if (!conversation) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/30 px-6 text-center">
-        <p className="font-serif text-2xl text-foreground">Conversation not found</p>
+        <p className="font-serif text-2xl text-foreground">
+          Conversation not found
+        </p>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-          <Link href={routes.chatInbox} className="text-primary underline-offset-4 hover:underline">
+          <Link
+            href={routes.chatInbox}
+            className="text-primary underline-offset-4 hover:underline"
+          >
             Back to inbox
           </Link>
         </p>
@@ -321,8 +364,8 @@ export default function ChatThread({ slug }: { slug: string }) {
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-background">
       <InboxTopbar
-        avatarUrl={avatarUrl || user.avatarUrl}
-        name={title || otherParticipant?.name || "Unknown User"}
+        avatarUrl={resolvedAvatarUrl} 
+        name={displayTitle || "Unknown User"} 
         status={presenceLabel}
         username={otherParticipant?.username}
         showBack
@@ -350,11 +393,16 @@ export default function ChatThread({ slug }: { slug: string }) {
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center">
-            <p className="text-sm text-muted-foreground">No messages yet. Say hello.</p>
+            <p className="text-sm text-muted-foreground">
+              No messages yet. Say hello.
+            </p>
           </div>
         ) : (
-          <div className="mx-auto mt-auto flex w-full max-w-5xl flex-col gap-3">
-            <div ref={loadMoreRef} className="flex h-6 items-center justify-center">
+          <div className="mx-auto mt-auto flex w-full flex-col gap-3">
+            <div
+              ref={loadMoreRef}
+              className="flex h-6 items-center justify-center"
+            >
               {isFetchingNextPage && (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               )}
@@ -362,6 +410,7 @@ export default function ChatThread({ slug }: { slug: string }) {
 
             {messages.map((message) => {
               const isMe = message.senderId === user.id;
+
               const showSeen =
                 isMe && message.id === lastOwnMessageId && peerHasReadLatest;
 
@@ -389,13 +438,15 @@ export default function ChatThread({ slug }: { slug: string }) {
           }}
           className="flex items-center gap-2 rounded-full border bg-muted/20 px-3 py-2 focus-within:ring-1 focus-within:ring-primary/30 sm:px-4"
         >
-          <EmojiPickerComponent onChange={(emoji) => setDraft((p) => p + emoji)} />
+          <EmojiPickerComponent
+            onChange={(emoji) => setDraft((p) => p + emoji)}
+          />
           <input
             ref={inputRef}
             type="text"
             value={draft}
             onChange={(e) => handleDraftChange(e.target.value)}
-            placeholder={`Message ${title || otherParticipant?.name || "user"}…`}
+            placeholder={`Message ${displayTitle || "user"}…`}
             className="flex-1 bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
           />
           <div className="flex shrink-0 items-center gap-1">
@@ -408,13 +459,25 @@ export default function ChatThread({ slug }: { slug: string }) {
               </button>
             ) : (
               <>
-                <button type="button" onClick={() => toast.info("Voice notes coming soon")} className="rounded-full p-2 text-muted-foreground hover:bg-muted">
+                <button
+                  type="button"
+                  onClick={() => toast.info("Voice notes coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+                >
                   <Mic className="h-[18px] w-[18px]" />
                 </button>
-                <button type="button" onClick={() => toast.info("Media attachments coming soon")} className="rounded-full p-2 text-muted-foreground hover:bg-muted">
+                <button
+                  type="button"
+                  onClick={() => toast.info("Media attachments coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+                >
                   <ImageIcon className="h-[18px] w-[18px]" />
                 </button>
-                <button type="button" onClick={() => toast.info("Stickers coming soon")} className="rounded-full p-2 text-muted-foreground hover:bg-muted">
+                <button
+                  type="button"
+                  onClick={() => toast.info("Stickers coming soon")}
+                  className="rounded-full p-2 text-muted-foreground hover:bg-muted"
+                >
                   <Sticker className="h-[18px] w-[18px]" />
                 </button>
               </>

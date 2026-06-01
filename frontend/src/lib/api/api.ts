@@ -98,10 +98,10 @@ export interface ListMessagesQuery {
 }
 
 
-export async function fetchMessages(conversationId: string, before?: string) {
+export async function fetchMessages(slug: string, before?: string) {
   const params: Record<string, string> = { limit: "40" };
   if (before) params.before = before;
-  const { data } = await API.get(`/chat/${conversationId}/list`, { params });
+  const { data } = await API.get(`/chat/${slug}/list`, { params });
   return data as {
     success: boolean;
     result: {

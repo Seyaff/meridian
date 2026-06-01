@@ -5,30 +5,35 @@ import { useMarkRead } from "@/hooks/chat/useMessages";
 const READ_DEBOUNCE_MS = 1500;
 
 export function useMarkConversationRead(
-  conversationRef: string | null,
-  conversationId?: string,
+  conversationRef: string | null, // This is your slug
+  conversationId?: string,        // This is your raw database ObjectId string
 ) {
   const socket = useSocket();
   const { mutate } = useMarkRead(conversationRef);
   const lastMarkedRef = useRef<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
   const mutateRef = useRef(mutate);
   const socketRef = useRef(socket);
   mutateRef.current = mutate;
   socketRef.current = socket;
 
   const flushMarkRead = useCallback(() => {
-    if (!conversationRef) return;
+    // 🧠 CRITICAL FIX: Ensure we have BOTH the slug and the underlying database ID 
+    // before emitting, otherwise the socket server will map to an invalid room channel.
+    if (!conversationRef || !conversationId) return;
     if (lastMarkedRef.current === conversationRef) return;
+    
     lastMarkedRef.current = conversationRef;
-    mutateRef.current();
-    const id = conversationId ?? conversationRef;
-    socketRef.current?.emit("message:read", { conversationId: id });
+    mutateRef.current(); // Hits HTTP endpoint to update DB record
+    
+    // Always use the real DB conversationId for socket communication
+    socketRef.current?.emit("message:read", { conversationId });
   }, [conversationRef, conversationId]);
 
   const scheduleMarkRead = useCallback(
     (immediate = false) => {
-      if (!conversationRef) return;
+      if (!conversationRef || !conversationId) return;
       if (timerRef.current) clearTimeout(timerRef.current);
       if (immediate) {
         flushMarkRead();
@@ -36,7 +41,7 @@ export function useMarkConversationRead(
       }
       timerRef.current = setTimeout(flushMarkRead, READ_DEBOUNCE_MS);
     },
-    [conversationRef, flushMarkRead],
+    [conversationRef, conversationId, flushMarkRead],
   );
 
   useEffect(() => {
@@ -45,7 +50,7 @@ export function useMarkConversationRead(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [conversationRef, scheduleMarkRead]);
+  }, [conversationRef, conversationId, scheduleMarkRead]); // Included conversationId dependency tracking
 
   return { markReadNow: () => scheduleMarkRead(true) };
 }

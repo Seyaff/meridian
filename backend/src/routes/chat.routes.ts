@@ -9,6 +9,6 @@ chatRoutes.use(authenticate)
 
 
 chatRoutes.post("/:conversationId/send" , sendMessageController)
-chatRoutes.get("/:conversationId/list" , listMessageController)
+chatRoutes.get("/:slug/list" , listMessageController)
 
 export default chatRoutes
