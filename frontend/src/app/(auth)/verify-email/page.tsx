@@ -5,6 +5,7 @@ import { useVerify } from "@/hooks/auth/useVerify";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import { toast } from "sonner";
 
 function VerifyContent() {
   const router = useRouter();
