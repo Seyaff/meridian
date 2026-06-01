@@ -5,67 +5,68 @@ interface Props {
   avatarUrl?: string;
   name: string;
   username?: string;
+  status?: string | null;
 }
 
 export default function InboxTopbar({
   avatarUrl,
   name,
   username,
+  status,
 }: Props) {
   return (
-    <main className="border-b  px-5 py-4">
-      <div className="flex items-center justify-between">
+    <header className="border-b px-5 py-4 bg-background shrink-0">
+      <div className="flex items-center justify-between gap-4">
         
-        {/* LEFT */}
-        <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 border">
+        {/* LEFT: User Profile & Presence */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar className="h-12 w-12 border shrink-0">
             <AvatarImage
               src={avatarUrl}
               alt={name}
               className="object-cover"
             />
-
-            <AvatarFallback className="">
-              {name?.slice(0, 2).toUpperCase()}
+            <AvatarFallback>
+              {name?.slice(0, 2).toUpperCase() || "CH"}
             </AvatarFallback>
           </Avatar>
 
-          <div className="leading-tight">
-            <h1 className="text-[20px] font-bold">
+          <div className="leading-tight min-w-0">
+            <h1 className="text-[18px] font-bold text-foreground truncate max-w-[200px] sm:max-w-[400px]">
               {name}
             </h1>
 
-            <p className="mt-1 text-sm ">
-              {username ? `@${username}` : "Active now"}
+            <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[400px]">
+              {status || (username ? `@${username}` : "Offline")}
             </p>
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex items-center gap-5 ">
-          
-          <button className="transition hover:scale-110">
+        {/* RIGHT: Action Buttons */}
+        <div className="flex items-center gap-4 text-muted-foreground shrink-0">
+          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
             <Phone
-              size={26}
+              size={22}
               className="stroke-[2px] cursor-pointer"
             />
           </button>
 
-          <button className="transition hover:scale-110 ">
+          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
             <Video
-              size={26}
+              size={22}
               className="stroke-[2px] cursor-pointer"
             />
           </button>
 
-          <button className="transition hover:scale-110 ">
+          <button className="p-1 rounded-full hover:bg-muted hover:text-foreground transition active:scale-95">
             <Info
-              size={26}
+              size={22}
               className="stroke-[2px] cursor-pointer"
             />
           </button>
         </div>
+
       </div>
-    </main>
+    </header>
   );
 }

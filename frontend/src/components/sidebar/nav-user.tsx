@@ -12,14 +12,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"; // Adjust this import path based on your setup
+} from "../ui/dropdown-menu";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import Link from "next/link";
+import { useLogout } from "@/hooks/auth/useLogout";
 
 export default function NavUser() {
   const { user } = useAuth();
+  
+  // 1. Initialize the logout mutation hook
+  const { mutate: logout, isPending } = useLogout();
 
-  // Guard against missing user state during loading
   if (!user) return null;
 
   return (
@@ -68,9 +71,15 @@ export default function NavUser() {
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive focus:text-destructive">
+            
+            {/* 2. Attach the logout function and optionally handle loading state */}
+            <DropdownMenuItem 
+              className="text-destructive focus:text-destructive cursor-pointer"
+              onClick={() => logout()}
+              disabled={isPending}
+            >
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>{isPending ? "Logging out..." : "Log out"}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

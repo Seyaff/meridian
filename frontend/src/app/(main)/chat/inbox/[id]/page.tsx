@@ -5,12 +5,16 @@ import { useParams } from "next/navigation";
 
 import { useGetConversation } from "@/hooks/chat/use-getConversation";
 import InboxTopbar from "@/components/inbox/topbar";
-import { Image as ImageIcon, Mic, Sticker, SendHorizontal } from "lucide-react";
+import { Image as ImageIcon, Mic, Sticker, SendHorizontal, Loader2 } from "lucide-react";
 import EmojiPickerComponent from "@/components/chat/emoji-picker";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useSocket } from "@/components/providers/socket-provider";
 import useChatRealtime from "@/hooks/chat/useChatRealtime";
-import { useMessages, useSendMessage } from "@/hooks/chat/useMessages";
+import {
+  useMarkRead,
+  useMessages,
+  useSendMessage,
+} from "@/hooks/chat/useMessages";
 import {
   getConversationAvatar,
   getConversationTitle,
@@ -20,25 +24,26 @@ import { Message } from "@/types/types";
 import Link from "next/link";
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { toast } from "sonner";
+import { usePresence } from "@/hooks/chat/usePresence";
+import { formatPresenceLabel } from "@/lib/presence.util";
 
 const MAX_MESSAGE_LENGTH = 4000;
 
 export default function SingleChatPage() {
   const [draft, setDraft] = useState("");
   const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
- 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const socket = useSocket();
   const params = useParams();
 
   const conversationId = (params?.id as string) || "";
 
-  const { data, isLoading: conversationLoading } =
-    useGetConversation(conversationId);
+  const { data, isLoading: conversationLoading } = useGetConversation(conversationId);
   const { user } = useAuth();
 
   const conversation = data?.conversation;
@@ -50,12 +55,12 @@ export default function SingleChatPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useMessages(conversationId || null);
+  const markReadMutation = useMarkRead(conversationId);
 
   const {
     mutate,
     mutateAsync,
     isPending: messageSendPending,
-    isError: messageError,
   } = useSendMessage(conversationId);
 
   const otherUserId =
@@ -63,10 +68,14 @@ export default function SingleChatPage() {
       ? getOtherParticipantId(conversation, user.id)
       : undefined;
 
+  const { getPresence } = usePresence(otherUserId ? [otherUserId] : []);
+
+  // Sync real-time updates for peer read receipts
   useChatRealtime(conversationId, user?.id || "", (lastReadAt) => {
     setPeerLastReadAt(lastReadAt);
   });
 
+  // Flatten and reverse infinite pages correctly
   const messages = useMemo(() => {
     if (!messagesData?.pages) return [];
     return (
@@ -77,12 +86,8 @@ export default function SingleChatPage() {
     );
   }, [messagesData?.pages]);
 
-  const title =
-    conversation && user ? getConversationTitle(conversation, user.id) : "";
-  const avatarUrl =
-    conversation && user
-      ? getConversationAvatar(conversation, user.id)
-      : undefined;
+  const title = conversation && user ? getConversationTitle(conversation, user.id) : "";
+  const avatarUrl = conversation && user ? getConversationAvatar(conversation, user.id) : undefined;
 
   const otherParticipant = useMemo(() => {
     if (!conversation || !user || conversation.type !== "dm") return null;
@@ -91,21 +96,75 @@ export default function SingleChatPage() {
     );
   }, [conversation, user]);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    bottomRef.current?.scrollIntoView({ behavior });
-  }, []);
-
-  useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom("instant");
-    }
-  }, [messages.length, scrollToBottom]);
-
+  // Sync initial conversation read receipt state
   useEffect(() => {
     if (otherParticipant?.lastReadAt) {
       setPeerLastReadAt(otherParticipant.lastReadAt);
     }
   }, [otherParticipant?.lastReadAt, conversationId]);
+
+  // Handle building typing labels
+  const typingLabel = useMemo(() => {
+    if (typingUsers.length === 0) return null;
+    const names = typingUsers
+      .map((id) => {
+        const p = conversation?.participants.find((x: any) => x.userId === id);
+        return p?.name ?? "Someone";
+      })
+      .filter(Boolean);
+    if (names.length === 1) return `${names[0]} is typing…`;
+    return `${names.join(", ")} are typing…`;
+  }, [typingUsers, conversation]);
+
+  const presenceLabel = useMemo(() => {
+    if (typingLabel) return typingLabel;
+    if (!otherUserId) return "Active";
+    const p = getPresence(otherUserId);
+    return formatPresenceLabel(p, otherParticipant?.name);
+  }, [typingLabel, otherUserId, getPresence, otherParticipant?.name]);
+
+  // Emit read statuses when room changes
+  useEffect(() => {
+    if (!conversationId) return;
+    markReadMutation.mutate();
+    socket?.emit("message:read", { conversationId });
+  }, [conversationId, socket]);
+
+  // Handle typing listener setup
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    const onTyping = (payload: { conversationId: string; userIds: string[] }) => {
+      if (payload.conversationId !== conversationId) return;
+      setTypingUsers(payload.userIds);
+    };
+
+    socket.on("typing:update", onTyping);
+    return () => {
+      socket.off("typing:update", onTyping);
+    };
+  }, [socket, conversationId]);
+
+  // Scroll to bottom implementation
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    if (behavior === "instant") {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior });
+    }
+  }, []);
+
+  // Landing fix: Triggers immediate scroll layout synchronization
+  useEffect(() => {
+    if (messages.length > 0) {
+      const timer = setTimeout(() => {
+        scrollToBottom("instant");
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [conversationId, messages.length, scrollToBottom]);
 
   const sendPayload = useCallback(
     async (payload: {
@@ -124,14 +183,14 @@ export default function SingleChatPage() {
             { conversationId, ...payload, clientId },
             (ack: { success: boolean; message?: string }) => {
               if (ack?.success) {
-                scrollToBottom();
+                setTimeout(() => scrollToBottom("smooth"), 50);
                 resolve();
               } else {
                 mutate(
                   { ...payload, clientId },
                   {
                     onSuccess: () => {
-                      scrollToBottom();
+                      setTimeout(() => scrollToBottom("smooth"), 50);
                       resolve();
                     },
                     onError: () => reject(),
@@ -144,14 +203,14 @@ export default function SingleChatPage() {
       }
 
       await mutateAsync({ ...payload, clientId });
-      scrollToBottom();
+      setTimeout(() => scrollToBottom("smooth"), 50);
     },
-    [conversationId, socket, mutate, scrollToBottom],
+    [conversationId, socket, mutate, mutateAsync, scrollToBottom],
   );
 
   const emitTyping = useCallback(
     (active: boolean) => {
-      if (!socket || !socket.connected || !conversationId) return;
+      if (!socket || !conversationId) return;
       socket.emit(active ? "typing:start" : "typing:stop", { conversationId });
     },
     [socket, conversationId],
@@ -162,8 +221,6 @@ export default function SingleChatPage() {
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
     };
   }, []);
-
-
 
   const handleDraftChange = (value: string) => {
     if (value.length > MAX_MESSAGE_LENGTH) return;
@@ -198,10 +255,8 @@ export default function SingleChatPage() {
   };
 
   const handleMicClick = () => toast.info("Voice notes feature coming soon!");
-  const handleImageClick = () =>
-    toast.info("Media attachments feature coming soon!");
-  const handleStickerClick = () =>
-    toast.info("Sticker pack integration coming soon!");
+  const handleImageClick = () => toast.info("Media attachments feature coming soon!");
+  const handleStickerClick = () => toast.info("Sticker pack integration coming soon!");
 
   if (!user) {
     return (
@@ -222,15 +277,10 @@ export default function SingleChatPage() {
   if (!conversation) {
     return (
       <div className="flex h-full flex-col items-center justify-center bg-muted/30 px-6 text-center">
-        <p className="font-serif text-2xl text-foreground">
-          Select a conversation
-        </p>
+        <p className="font-serif text-2xl text-foreground">Select a conversation</p>
         <p className="mt-2 max-w-sm text-sm text-muted-foreground">
           Pick a chat from the sidebar or{" "}
-          <Link
-            href="/people"
-            className="text-primary underline-offset-4 hover:underline"
-          >
+          <Link href="/people" className="text-primary underline-offset-4 hover:underline">
             find someone new
           </Link>
           .
@@ -244,32 +294,57 @@ export default function SingleChatPage() {
       <InboxTopbar
         avatarUrl={avatarUrl || user.avatarUrl}
         name={title || otherParticipant?.name || "Unknown User"}
+        status={presenceLabel}
         username={otherParticipant?.username}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+      {/* Main Container assigned ref properly here */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 flex flex-col"
+      >
         {messagesLoading ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-muted-foreground">Loading messages…</p>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              No messages yet. Say hello.
-            </p>
+            <p className="text-sm text-muted-foreground">No messages yet. Say hello.</p>
           </div>
         ) : (
-          <div className="mx-auto flex w-full max-w- flex-col gap-3 justify-end mt-auto">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 justify-end mt-auto">
+            
+            {/* Wired up historical pagination trigger */}
+            {hasNextPage && (
+              <button
+                disabled={isFetchingNextPage}
+                onClick={() => fetchNextPage()}
+                className="mx-auto my-2 flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground hover:bg-muted transition disabled:opacity-50"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading older messages...
+                  </>
+                ) : (
+                  "Load older messages"
+                )}
+              </button>
+            )}
+
             {messages.map((message: any) => {
               const isMe = message.senderId === user?.id;
               const isSeen =
                 isMe &&
                 !!peerLastReadAt &&
                 new Date(peerLastReadAt) >= new Date(message.createdAt);
+              
+              // Only marks as pending if it matches an active status placeholder identity
+              const isPending = !message.id && messageSendPending;
+
               return (
                 <MessageBubble
                   key={message.id || message.clientId}
-                  isMessagePending={messageSendPending}
+                  isMessagePending={isPending}
                   message={message}
                   isMe={isMe}
                   isSeen={isSeen}
@@ -277,7 +352,7 @@ export default function SingleChatPage() {
               );
             })}
 
-            <div ref={bottomRef} />
+            <div ref={bottomRef} className="h-2" />
           </div>
         )}
       </div>

@@ -192,5 +192,13 @@ export const conversationService = {
   },
 
 
+  async markRead(conversationId: string, userId: string) {
+    const participant = await getActiveParticipant(conversationId, userId);
+    participant.lastReadAt = new Date();
+    await participant.save();
+    return { conversationId, lastReadAt: participant.lastReadAt };
+  },
+
+
   
 };

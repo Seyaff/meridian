@@ -1,4 +1,4 @@
-import { LoginRequest, Message, RegisterRequest, VerifyEmailRequest } from "@/types/types";
+import { LoginRequest, Message, RegisterRequest, UserPresence, VerifyEmailRequest } from "@/types/types";
 import API from "./axios-client";
 
 export const getUser = async () => {
@@ -112,4 +112,24 @@ export async function sendMessage(
     payload,
   );
   return data.message as Message;
+}
+
+
+
+
+export async function fetchPresence(userIds: string[]) {
+  if (userIds.length === 0) return [] as UserPresence[];
+  const { data } = await API.get("/users/presence", {
+    params: { ids: userIds.join(",") },
+  });
+  return data.presence as UserPresence[];
+}
+
+
+
+export async function markRead(conversationId: string) {
+  const { data } = await API.patch(
+    `/conversations/${conversationId}/read`,
+  );
+  return data;
 }

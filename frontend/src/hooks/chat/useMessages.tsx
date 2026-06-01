@@ -1,5 +1,5 @@
-import { fetchMessages, sendMessage } from "@/lib/api/api";
-import { Message } from "@/types/types";
+import { fetchMessages, markRead, sendMessage } from "@/lib/api/api";
+import { Conversation, Message } from "@/types/types";
 import {
   useInfiniteQuery,
   useMutation,
@@ -76,6 +76,29 @@ export function useSendMessage(conversationId: string) {
         };
       });
 
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}
+
+
+export function useMarkRead(conversationId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => markRead(conversationId!),
+    onMutate: async () => {
+      if (!conversationId) return;
+      await queryClient.cancelQueries({ queryKey: ["conversations"] });
+      queryClient.setQueryData(
+        ["conversations"],
+        (old: Conversation[] | undefined) =>
+          old?.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+          ),
+      );
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });

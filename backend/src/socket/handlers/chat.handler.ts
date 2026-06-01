@@ -2,6 +2,8 @@ import { Server, Socket } from "socket.io";
 import { messageService } from "../../services/message.service";
 import z from "zod";
 import { getActiveParticipant } from "../../services/membership.service";
+import { typingStore } from "../../utils/typing.util";
+import { conversationService } from "../../services/conversation.service";
 
 const joinSchema = z.object({ conversationId: z.string().regex(/^[a-fA-F0-9]{24}$/) });
 
@@ -70,6 +72,16 @@ export const chatHandlers = (io: Server) => {
       }
     } )
 
+
+       socket.on("conversation:leave", async (payload) => {
+      try {
+        const { conversationId } = joinSchema.parse(payload);
+        await socket.leave(roomId(conversationId));
+        typingStore.clearTyping(conversationId, socket.userId);
+      } catch {
+        /* ignore */
+      }
+    });
   
     socket.on("message:send", async (payload, ack) => {
       try {
@@ -90,6 +102,48 @@ export const chatHandlers = (io: Server) => {
         ack?.({ success: false, message: err instanceof Error ? err.message : "Send failed" });
       }
     });
+
+       socket.on("typing:start", (payload) => {
+      try {
+        const { conversationId } = typingSchema.parse(payload);
+        const userIds = typingStore.setTyping(conversationId, socket.userId);
+        socket.to(roomId(conversationId)).emit("typing:update", {
+          conversationId,
+          userIds: userIds.filter((id) => id !== socket.userId),
+        });
+      } catch {
+        /* ignore */
+      }
+    });
+
+    socket.on("typing:stop", (payload) => {
+      try {
+        const { conversationId } = typingSchema.parse(payload);
+        const userIds = typingStore.clearTyping(conversationId, socket.userId);
+        socket.to(roomId(conversationId)).emit("typing:update", {
+          conversationId,
+          userIds,
+        });
+      } catch {
+        /* ignore */
+      }
+    });
+
+    socket.on("message:read", async (payload) => {
+      try {
+        const { conversationId } = readSchema.parse(payload);
+        const result = await conversationService.markRead(conversationId, socket.userId);
+        socket.to(roomId(conversationId)).emit("message:read", {
+          conversationId,
+          userId: socket.userId,
+          lastReadAt: result.lastReadAt,
+        });
+      } catch {
+        /* ignore */
+      }
+    });
+
+    
 
     socket.on("disconnect", (reason) => {
       console.log("Socket disconnected:", reason);

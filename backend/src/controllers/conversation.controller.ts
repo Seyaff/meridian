@@ -40,3 +40,10 @@ export const getConversationController = asyncHandler(async (req: Request, res: 
   const conversation = await conversationService.getById(conversationId, req.user!.id);
   return res.status(HTTPSTATUS.OK).json({ success: true, conversation });
 });
+
+
+export const markReadController = asyncHandler(async (req: Request, res: Response) => {
+  const { conversationId } = conversationIdParamSchema.parse(req.params);
+  const result = await conversationService.markRead(conversationId, req.user!.id);
+  return res.status(HTTPSTATUS.OK).json({ success: true, ...result });
+});

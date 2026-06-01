@@ -14,6 +14,7 @@ import { HTTPSTATUS } from "./config/http.config";
 import chatRoutes from "./routes/chat.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import searchRoutes from "./routes/search.routes";
+import userRoutes from "./routes/user.routes";
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/chat`, chatRoutes);
 app.use(`${BASE_PATH}/conversations`, conversationRoutes);
 app.use(`${BASE_PATH}/search`, searchRoutes);
+app.use(`${BASE_PATH}/users`, userRoutes);
 
 app.use(errorHandler);
 

@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import { HydratedDocument, Types } from "mongoose";
 import ParticipantModel, { IParticipant } from "../models/participant.model";
 import { ForbiddenError } from "../utils/appError";
 import { HTTPSTATUS } from "../config/http.config";
@@ -7,7 +7,8 @@ import { ErrorCodeEnum } from "../enums/error-code.enum";
 export async function getActiveParticipant(
   conversationId: string,
   userId: string,
-): Promise<IParticipant> {
+
+): Promise<HydratedDocument<IParticipant>> { 
   const participant = await ParticipantModel.findOne({
     conversationId: new Types.ObjectId(conversationId),
     userId: new Types.ObjectId(userId),
