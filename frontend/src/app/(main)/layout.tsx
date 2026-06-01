@@ -1,4 +1,5 @@
 import AppShell from "@/components/layout/app-shell";
+import LenisProvider from "@/components/providers/smooth-scroll-provider";
 
 export default function MainLayout({
   children,
@@ -7,7 +8,9 @@ export default function MainLayout({
 }) {
   return (
     <main className="h-screen w-full overflow-hidden bg-background">
-      <AppShell>{children}</AppShell>
+      <LenisProvider>
+        <AppShell>{children}</AppShell>
+      </LenisProvider>
     </main>
   );
 }

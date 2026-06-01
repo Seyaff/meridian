@@ -58,7 +58,7 @@ export default function AccountPage() {
   return (
     <div className="h-full overflow-y-auto px-4 py-8 sm:px-8">
       <div className="mx-auto w-full max-w-lg">
-        <h1 className="font-serif text-2xl font-semibold">Your profile</h1>
+        <h1 className="font-serif text-2xl">Your profile</h1>
         <p className="mt-1 text-sm text-muted-foreground">@{user.username}</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">

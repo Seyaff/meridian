@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAuth } from "../providers/auth-provider";
 import { useGetConversations } from "@/hooks/chat/use-getConversations";
@@ -15,13 +15,12 @@ function formatUnreadBadge(count: number) {
 
 type Props = {
   className?: string;
+  activeSlug?: string;
 };
 
-export default function InboxSidebar({ className }: Props) {
+export default function InboxSidebar({ className, activeSlug }: Props) {
   const { user } = useAuth();
   const { data, isPending } = useGetConversations();
-  const params = useParams();
-  const activeId = (params?.id || params?.conversationId) as string;
 
   const sortedConversations = useMemo(() => {
     const raw = data?.conversations || [];
@@ -44,9 +43,7 @@ export default function InboxSidebar({ className }: Props) {
       )}
     >
       <div className="flex h-14 shrink-0 items-center border-b border-border/40 px-4">
-        <h2 className="text-sm font-semibold tracking-wide text-foreground">
-          Messages
-        </h2>
+        <h2 className="text-sm tracking-wide text-foreground">Messages</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
@@ -57,7 +54,7 @@ export default function InboxSidebar({ className }: Props) {
         ) : (
           <ul className="flex flex-col gap-1">
             {sortedConversations.map((chat) => {
-              const isActive = activeId === chat.id;
+              const isActive = activeSlug === chat.slug;
               const opposing = chat.participants?.find(
                 (p: { userId: string }) => p.userId !== user?.id,
               );
@@ -77,7 +74,7 @@ export default function InboxSidebar({ className }: Props) {
               return (
                 <li key={chat.id}>
                   <Link
-                    href={`/chat/inbox/${chat.id}`}
+                    href={routes.chatThread(chat.slug)}
                     className={cn(
                       "flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors",
                       isActive
@@ -98,14 +95,14 @@ export default function InboxSidebar({ className }: Props) {
                           className={cn(
                             "truncate text-sm",
                             hasUnread
-                              ? "font-bold text-foreground"
-                              : "font-medium text-foreground",
+                              ? "text-foreground"
+                              : "text-foreground/90",
                           )}
                         >
                           {chatName}
                         </span>
                         {badge && (
-                          <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                          <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground">
                             {badge}
                           </span>
                         )}
@@ -114,7 +111,7 @@ export default function InboxSidebar({ className }: Props) {
                         className={cn(
                           "truncate text-xs",
                           isIncoming
-                            ? "font-semibold text-foreground"
+                            ? "text-foreground"
                             : "text-muted-foreground",
                         )}
                       >

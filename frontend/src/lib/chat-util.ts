@@ -12,6 +12,9 @@ export function getConversationTitle(
   conversation: Conversation,
   currentUserId: string,
 ): string {
+  if (conversation.nickname?.trim()) {
+    return conversation.nickname.trim();
+  }
   if (conversation.type === "group" && conversation.name) {
     return conversation.name;
   }

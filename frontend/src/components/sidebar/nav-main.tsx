@@ -14,7 +14,11 @@ const navMainItems = [
 
 function isNavActive(pathname: string, href: string) {
   if (href === "/chat/inbox") {
-    return pathname === href || pathname.startsWith("/chat/inbox/");
+    return (
+      pathname === href ||
+      pathname.startsWith("/chat/inbox/") ||
+      /^\/chat\/[a-z0-9]{6,24}$/i.test(pathname)
+    );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

@@ -9,6 +9,7 @@ export interface IParticipant extends Document {
   joinedAt: Date;
   leftAt?: Date;
   lastReadAt?: Date;
+  nickname?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ const participantSchema = new Schema<IParticipant>(
     joinedAt: { type: Date, default: Date.now },
     leftAt: Date,
     lastReadAt: Date,
+    nickname: { type: String, trim: true, maxlength: 80 },
   },
   { timestamps: true },
 );

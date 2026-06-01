@@ -8,13 +8,20 @@ import { buildDmKey } from "../utils/dmKey.util";
 import ParticipantModel, { ParticipantRole } from "../models/participant.model";
 import MessageModel from "../models/message.model";
 import { getActiveParticipant } from "./membership.service";
+import { generateUniqueConversationSlug } from "../utils/slug.util";
+import {
+  ensureConversationSlug,
+  resolveConversationId,
+} from "./conversationResolver.service";
 
 export interface ConversationListItem {
   id: string;
+  slug: string;
   type: "dm" | "group";
   name?: string;
   avatarUrl?: string;
   dmKey?: string;
+  nickname?: string;
   lastMessage?: {
     messageId: string;
     senderId: string;
@@ -30,6 +37,7 @@ export interface ConversationListItem {
     username: string;
     avatarUrl?: string;
     lastReadAt?: Date;
+    nickname?: string;
   }>;
   updatedAt: Date;
 }
@@ -56,6 +64,7 @@ async function enrichParticipants(conversationId: Types.ObjectId) {
       username: u?.username ?? "unknown",
       avatarUrl: u?.avatarUrl,
       lastReadAt: p.lastReadAt,
+      nickname: p.nickname,
     };
   });
 }
@@ -74,6 +83,59 @@ async function countUnread(
   return MessageModel.countDocuments(filter);
 }
 
+function mapConversation(
+  conv: {
+    _id: Types.ObjectId;
+    slug?: string;
+    type: "dm" | "group";
+    name?: string;
+    avatarUrl?: string;
+    dmKey?: string;
+    lastMessage?: ConversationListItem["lastMessage"];
+    updatedAt: Date;
+    createdAt?: Date;
+  },
+  participants: Awaited<ReturnType<typeof enrichParticipants>>,
+  membership: { lastReadAt?: Date; nickname?: string } | null,
+  unreadCount: number,
+  userId: string,
+) {
+  const other =
+    conv.type === "dm"
+      ? participants.find((p) => p.userId !== userId)
+      : undefined;
+
+  const displayName =
+    membership?.nickname?.trim() ||
+    (conv.type === "group" ? conv.name : other?.name) ||
+    other?.username ||
+    "Conversation";
+
+  return {
+    id: conv._id.toString(),
+    slug: conv.slug!,
+    type: conv.type,
+    name: displayName,
+    avatarUrl:
+      conv.type === "group" ? conv.avatarUrl : other?.avatarUrl,
+    dmKey: conv.dmKey,
+    nickname: membership?.nickname,
+    lastMessage: conv.lastMessage
+      ? {
+          messageId: String(conv.lastMessage.messageId),
+          senderId: String(conv.lastMessage.senderId),
+          content: conv.lastMessage.content,
+          type: conv.lastMessage.type,
+          createdAt: conv.lastMessage.createdAt,
+        }
+      : undefined,
+    unreadCount,
+    participants,
+    updatedAt: conv.updatedAt,
+    createdAt: conv.createdAt,
+  };
+}
+
 export const conversationService = {
   async listForUser(userId: string) {
     const memberships = await ParticipantModel.find({
@@ -88,31 +150,29 @@ export const conversationService = {
     for (const m of memberships) {
       const conv = await ConversationModel.findById(m.conversationId);
       if (!conv) continue;
+      const slug = conv.slug ?? (await ensureConversationSlug(conv._id));
+      conv.slug = slug;
+
       const participants = await enrichParticipants(conv._id);
       const unreadCount = await countUnread(conv._id, userId, m.lastReadAt);
 
-      items.push({
-        id: conv._id.toString(),
-        type: conv.type,
-        name: conv.name,
-        avatarUrl: conv.avatarUrl,
-        dmKey: conv.dmKey,
-        lastMessage: conv.lastMessage
-          ? {
-              messageId: conv.lastMessage.messageId.toString(),
-              senderId: conv.lastMessage.senderId.toString(),
-              content: conv.lastMessage.content,
-              type: conv.lastMessage.type,
-              createdAt: conv.lastMessage.createdAt,
-            }
-          : undefined,
-        unreadCount,
-        participants,
-        updatedAt: conv.updatedAt,
-      });
+      items.push(
+        mapConversation(
+          conv as Parameters<typeof mapConversation>[0],
+          participants,
+          m,
+          unreadCount,
+          userId,
+        ) as ConversationListItem,
+      );
     }
     items.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     return items;
+  },
+
+  async getByRef(ref: string, userId: string) {
+    const conversationId = await resolveConversationId(ref);
+    return this.getById(conversationId, userId);
   },
 
   async getById(conversationId: string, userId: string) {
@@ -126,6 +186,8 @@ export const conversationService = {
       );
     }
 
+    const slug = conv.slug ?? (await ensureConversationSlug(conv._id));
+
     const membership = await ParticipantModel.findOne({
       conversationId: conv._id,
       userId: new Types.ObjectId(userId),
@@ -134,18 +196,13 @@ export const conversationService = {
     const participants = await enrichParticipants(conv._id);
     const unreadCount = await countUnread(conv._id, userId, membership?.lastReadAt);
 
-    return {
-      id: conv._id.toString(),
-      type: conv.type,
-      name: conv.name,
-      avatarUrl: conv.avatarUrl,
-      dmKey: conv.dmKey,
-      lastMessage: conv.lastMessage,
-      unreadCount,
+    return mapConversation(
+      { ...conv, slug } as Parameters<typeof mapConversation>[0],
       participants,
-      createdAt: conv.createdAt,
-      updatedAt: conv.updatedAt,
-    };
+      membership,
+      unreadCount,
+      userId,
+    );
   },
 
   async createConversation(userId: string, otherUserId: string) {
@@ -170,9 +227,11 @@ export const conversationService = {
     let conv = await ConversationModel.findOne({ dmKey });
 
     if (!conv) {
+      const slug = await generateUniqueConversationSlug();
       conv = await ConversationModel.create({
         type: "dm",
         dmKey,
+        slug,
         createdBy: new Types.ObjectId(userId),
       });
 
@@ -188,17 +247,36 @@ export const conversationService = {
           role: "member",
         },
       ]);
+    } else if (!conv.slug) {
+      conv.slug = await ensureConversationSlug(conv._id);
+      await conv.save();
     }
 
     return this.getById(conv._id.toString(), userId);
   },
 
-
-  async markRead(conversationId: string, userId: string) {
+  async markRead(ref: string, userId: string) {
+    const conversationId = await resolveConversationId(ref);
     const participant = await getActiveParticipant(conversationId, userId);
     participant.lastReadAt = new Date();
     await participant.save();
     return { conversationId, lastReadAt: participant.lastReadAt };
+  },
+
+  async updateNickname(ref: string, userId: string, nickname?: string) {
+    const conversationId = await resolveConversationId(ref);
+    const participant = await getActiveParticipant(conversationId, userId);
+    participant.nickname = nickname;
+    await participant.save();
+    return this.getById(conversationId, userId);
+  },
+
+  async deleteForUser(ref: string, userId: string) {
+    const conversationId = await resolveConversationId(ref);
+    const participant = await getActiveParticipant(conversationId, userId);
+    participant.leftAt = new Date();
+    await participant.save();
+    return { conversationId, leftAt: participant.leftAt };
   },
 
   async getInboxSummary(conversationId: string, userId: string) {
@@ -206,6 +284,7 @@ export const conversationService = {
       const conv = await this.getById(conversationId, userId);
       return {
         conversationId: conv.id,
+        slug: conv.slug,
         lastMessage: conv.lastMessage,
         unreadCount: conv.unreadCount,
         updatedAt: conv.updatedAt,

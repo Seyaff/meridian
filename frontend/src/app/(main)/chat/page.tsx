@@ -8,7 +8,7 @@ export default function ChatHomePage() {
 
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">
-      <p className="font-serif text-2xl font-semibold sm:text-3xl">
+      <p className="font-serif text-2xl sm:text-3xl">
         {user?.name ? `Hi, ${user.name.split(" ")[0]}` : "Welcome"}
       </p>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">

@@ -13,6 +13,7 @@ export interface LastMessagePreview {
 
 export interface IConversation extends Document {
   type: ConversationType;
+  slug?: string;
   name?: string;
   avatarUrl?: string;
   dmKey?: string;
@@ -52,6 +53,7 @@ const lastMessageSchema = new Schema<LastMessagePreview>(
 const conversationSchema = new Schema<IConversation>(
   {
     type: { type: String, enum: ["dm", "group"], required: true },
+    slug: { type: String, unique: true, sparse: true, trim: true, maxlength: 24 },
     name: { type: String, trim: true, maxlength: 100 },
     avatarUrl: String,
     dmKey: { type: String, unique: true, sparse: true },

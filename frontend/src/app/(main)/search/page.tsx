@@ -32,7 +32,7 @@ export default function SearchPage() {
   const handleMessage = (userId: string) => {
     startConversation(userId, {
       onSuccess: (conversation) => {
-        router.push(`/chat/inbox/${conversation.id}`);
+        router.push(`/chat/${conversation.slug}`);
       },
     });
   };
@@ -49,7 +49,7 @@ export default function SearchPage() {
     <div className="flex h-full min-h-0 flex-col">
       <header className="sticky top-0 z-10 border-b border-border/40 bg-background/90 px-4 py-4 backdrop-blur-md sm:px-6">
         <div className="mx-auto w-full max-w-2xl">
-          <h1 className="mb-3 text-xl font-bold sm:text-2xl">Search</h1>
+          <h1 className="mb-3 text-xl sm:text-2xl">Search</h1>
           <div className="relative flex items-center rounded-full border bg-background px-4 py-2.5 shadow-sm focus-within:ring-1 focus-within:ring-primary/30">
             <Search className="h-5 w-5 shrink-0 text-muted-foreground" />
             <input
@@ -74,7 +74,7 @@ export default function SearchPage() {
 
       <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
         <div className="mx-auto w-full max-w-2xl">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
             {debouncedQuery.trim() ? "Results" : "Suggested"}
           </h2>
 
@@ -102,7 +102,7 @@ export default function SearchPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{user.name}</p>
+                      <p className="truncate text-sm">{user.name}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         @{user.username}
                       </p>

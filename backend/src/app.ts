@@ -1,5 +1,5 @@
 import "dotenv/config";
-console.log("DEBUG: MONGO_URI is currently ->", process.env.MONGO_URI);
+
 
 import type {Request , Response} from "express"
 

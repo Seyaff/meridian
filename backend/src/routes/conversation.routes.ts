@@ -1,17 +1,23 @@
 import { Router } from "express";
-import { createConversation, getAllConversations , getConversationController, markReadController } from "../controllers/conversation.controller";
+import {
+  createConversation,
+  deleteConversationController,
+  getAllConversations,
+  getConversationController,
+  markReadController,
+  updateNicknameController,
+} from "../controllers/conversation.controller";
 import { authenticate } from "../middlewares/authenticate.middleware";
 
-const conversationRoutes = Router()
+const conversationRoutes = Router();
 
-conversationRoutes.use(authenticate)
+conversationRoutes.use(authenticate);
 
+conversationRoutes.post("/create", createConversation);
+conversationRoutes.get("/all", getAllConversations);
+conversationRoutes.get("/:ref", getConversationController);
+conversationRoutes.patch("/:ref/read", markReadController);
+conversationRoutes.patch("/:ref/nickname", updateNicknameController);
+conversationRoutes.delete("/:ref", deleteConversationController);
 
-conversationRoutes.post("/create" , createConversation)
-conversationRoutes.get("/all", getAllConversations)
-conversationRoutes.get("/conversations/:conversationId", getConversationController);
-conversationRoutes.patch("/:conversationId/read", markReadController);
-
-
-
-export default conversationRoutes
+export default conversationRoutes;

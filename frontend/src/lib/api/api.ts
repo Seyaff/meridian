@@ -44,10 +44,25 @@ export const listConversations = async () => {
 }
 
 
-export const getSingleConversation = async (conversationId :string) => {
-  const res = await API.get(`/conversations/conversations/${conversationId}`)
-  return res.data
-}
+export const getSingleConversation = async (ref: string) => {
+  const res = await API.get(`/conversations/${encodeURIComponent(ref)}`);
+  return res.data;
+};
+
+export const deleteConversation = async (ref: string) => {
+  const res = await API.delete(`/conversations/${encodeURIComponent(ref)}`);
+  return res.data;
+};
+
+export const updateConversationNickname = async (
+  ref: string,
+  nickname?: string,
+) => {
+  const res = await API.patch(`/conversations/${encodeURIComponent(ref)}/nickname`, {
+    nickname: nickname ?? "",
+  });
+  return res.data.conversation;
+};
 
 
 export const suggestedUsers = async () => {
@@ -124,7 +139,7 @@ export async function sendMessage(
     `/chat/${conversationId}/send`,
     payload,
   );
-  return data.message as Message;
+  return (data.result ?? data.message) as Message;
 }
 
 

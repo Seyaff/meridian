@@ -26,9 +26,13 @@ export const authenticate = async (
   if (
     !user ||
     !user.isEmailVerified ||
-    ["pending , deleted"].includes(user.status)
+    ["pending", "deleted", "suspended"].includes(user.status)
   ) {
-    throw new BadRequestError("Some problem occured");
+    throw new BadRequestError(
+      "Account is not allowed to access this resource",
+      HTTPSTATUS.UNAUTHORIZED,
+      ErrorCodeEnum.AUTH_UNAUTHORIZED_ACCESS,
+    );
   }
 
   req.user = { id: decoded.sub, role: decoded.role };

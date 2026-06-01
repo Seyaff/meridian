@@ -45,7 +45,7 @@ export default function UserProfilePage() {
   const handleMessage = () => {
     startConversation(user.id, {
       onSuccess: (conversation) => {
-        router.push(`/chat/inbox/${conversation.id}`);
+        router.push(`/chat/${conversation.slug}`);
       },
     });
   };
@@ -61,7 +61,7 @@ export default function UserProfilePage() {
             </AvatarFallback>
           </Avatar>
 
-          <h1 className="mt-4 text-2xl font-bold">{user.name}</h1>
+          <h1 className="mt-4 text-2xl">{user.name}</h1>
           <p className="text-muted-foreground">@{user.username}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {formatPresenceLabel(presence, user.name)}

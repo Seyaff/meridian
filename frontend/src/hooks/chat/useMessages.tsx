@@ -105,8 +105,5 @@ export function useMarkRead(conversationId: string | null) {
         },
       );
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
   });
 }

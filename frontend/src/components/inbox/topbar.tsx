@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Info, Phone, Video } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -11,6 +12,7 @@ interface Props {
   status?: string | null;
   showBack?: boolean;
   profileHref?: string;
+  actions?: ReactNode;
 }
 
 export default function InboxTopbar({
@@ -20,6 +22,7 @@ export default function InboxTopbar({
   status,
   showBack,
   profileHref,
+  actions,
 }: Props) {
   const profileLink = profileHref || (username ? `/search/${username}` : undefined);
 
@@ -44,7 +47,7 @@ export default function InboxTopbar({
                 <AvatarFallback>{name?.slice(0, 2).toUpperCase() || "CH"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 leading-tight">
-                <h1 className="truncate text-base font-bold sm:text-lg">{name}</h1>
+                <h1 className="truncate text-base sm:text-lg">{name}</h1>
                 <p className="truncate text-xs text-muted-foreground">
                   {status || (username ? `@${username}` : "Offline")}
                 </p>
@@ -57,7 +60,7 @@ export default function InboxTopbar({
                 <AvatarFallback>{name?.slice(0, 2).toUpperCase() || "CH"}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 leading-tight">
-                <h1 className="truncate text-base font-bold sm:text-lg">{name}</h1>
+                <h1 className="truncate text-base sm:text-lg">{name}</h1>
                 <p className="truncate text-xs text-muted-foreground">{status}</p>
               </div>
             </div>
@@ -65,6 +68,7 @@ export default function InboxTopbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-1 text-muted-foreground sm:gap-2">
+          {actions}
           <button
             type="button"
             className="rounded-full p-2 hover:bg-muted hover:text-foreground"

@@ -3,12 +3,10 @@
 import { getSingleConversation } from "@/lib/api/api";
 import { useQuery } from "@tanstack/react-query";
 
-export const useGetConversation = (conversationId: string) => {
+export const useGetConversation = (ref: string) => {
   return useQuery({
-    queryKey: ["conversation", conversationId],
-
-    queryFn: () => getSingleConversation(conversationId),
-
-    enabled: !!conversationId,
+    queryKey: ["conversation", ref],
+    queryFn: () => getSingleConversation(ref),
+    enabled: !!ref,
   });
 };

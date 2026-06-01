@@ -19,7 +19,7 @@ export default function OverlayNav() {
       aria-label="Main navigation"
     >
       <div className="flex h-14 shrink-0 items-center justify-center border-b border-border/40">
-        <h1 className="font-serif text-xl font-semibold">M</h1>
+        <h1 className="font-serif text-xl">M</h1>
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">

@@ -1,14 +1,13 @@
-import {z} from "zod"
+import { z } from "zod";
+import { conversationRefSchema } from "./conversation.validator";
 
 const objectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/, "Invalid id");
 
 export const createDmSchema = z.object({
   otherUserId: objectIdSchema,
 });
-
-
 export const conversationIdParamSchema = z.object({
-  conversationId: objectIdSchema,
+  conversationId: conversationRefSchema,
 });
 
 export const listMessagesQuerySchema = z.object({

@@ -1,46 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const AUTH_COOKIE = "accessToken";
 
-const publicRoutes = ["/" , "/login" , "/signup" , "/forgot-password"  , "/reset-password" , "/verify-email" ]
-const privateRoutes = ["/chat"]
+const AUTH_PAGES = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+]);
 
+const PROTECTED_PREFIXES = ["/chat", "/search", "/account"];
 
-function isPublicRoute  (pathname : string)  {
-    return publicRoutes.includes(pathname)
+function hasAuth(request: NextRequest) {
+  return Boolean(request.cookies.get(AUTH_COOKIE)?.value);
 }
 
-function isPrivateRoute (pathname: string) {
-    return privateRoutes.includes(pathname)
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
-
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  console.log(`[Proxy Executing] Requesting path: ${pathname}`);
-  const token = request.cookies.get('accessToken')?.value; 
+  const authed = hasAuth(request);
 
-  const isPublic = isPublicRoute(pathname)
-  const isPrivate = isPrivateRoute(pathname)
-
-  if(isPublic && token) {
-    return NextResponse.redirect(new URL("/chat" , request.url))
-    
+  if (authed && AUTH_PAGES.has(pathname)) {
+    return NextResponse.redirect(new URL("/chat", request.url));
   }
 
-  if(isPrivate && !token) {
-    return NextResponse.redirect(new URL("/login" , request.url))
+  if (!authed && isProtectedPath(pathname)) {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", pathname);
+    return NextResponse.redirect(login);
   }
-
-  
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };
-
-
-
-

@@ -3,12 +3,13 @@ import ParticipantModel, { IParticipant } from "../models/participant.model";
 import { ForbiddenError } from "../utils/appError";
 import { HTTPSTATUS } from "../config/http.config";
 import { ErrorCodeEnum } from "../enums/error-code.enum";
+import { resolveConversationId } from "./conversationResolver.service";
 
 export async function getActiveParticipant(
-  conversationId: string,
+  conversationRef: string,
   userId: string,
-
-): Promise<HydratedDocument<IParticipant>> { 
+): Promise<HydratedDocument<IParticipant>> {
+  const conversationId = await resolveConversationId(conversationRef);
   const participant = await ParticipantModel.findOne({
     conversationId: new Types.ObjectId(conversationId),
     userId: new Types.ObjectId(userId),

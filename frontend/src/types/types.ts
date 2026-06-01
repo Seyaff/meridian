@@ -75,8 +75,10 @@ export interface MessageMedia {
 
 export interface Conversation {
   id: string;
+  slug: string;
   type: "dm" | "group";
   name?: string;
+  nickname?: string;
   avatarUrl?: string;
   lastMessage?: {
     messageId: string;
@@ -93,6 +95,7 @@ export interface Conversation {
     username: string;
     avatarUrl?: string;
     lastReadAt?: string;
+    nickname?: string;
   }>;
   updatedAt: string;
 }

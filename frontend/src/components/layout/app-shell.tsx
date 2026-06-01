@@ -3,12 +3,14 @@
 import OverlayNav from "@/components/chat/overlay-nav";
 import { SocketProvider } from "@/components/providers/socket-provider";
 import { useInboxRealtime } from "@/hooks/chat/useInboxRealtime";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 
 function InboxRealtimeBridge() {
   const params = useParams();
-  const activeId = (params?.id as string) || undefined;
-  useInboxRealtime(activeId);
+  const pathname = usePathname();
+  const slugFromPath = pathname.match(/^\/chat\/([a-z0-9]{6,24})$/i)?.[1];
+  const activeSlug = (params?.slug as string) || slugFromPath;
+  useInboxRealtime(activeSlug);
   return null;
 }
 
