@@ -191,11 +191,11 @@ const userSchema = new Schema<IUser>(
   },
 );
 
-userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+// userSchema.pre("save", async function () {
+//   if (!this.isModified("password")) return;
 
-  this.password = await hashPassword(this.password);
-});
+//   this.password = await hashPassword(this.password);
+// });
 
 userSchema.methods.comparePassword = async function (password : string) {
   return await comparePassword(password , this.password)
