@@ -10,13 +10,7 @@ export const emailSchema = z
 export const passwordSchema = z
   .string()
   .trim()
-  .min(8, "Password must be at least 8 characters")
-  .max(128)
-  .regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    "Password must contain uppercase, lowercase, and a number",
-  );
-
+  
 export const usernameSchema = z
   .string()
   .trim()
